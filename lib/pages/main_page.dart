@@ -1,3 +1,4 @@
+import 'package:dangq/work/walk_choose.dart';
 import 'package:flutter/material.dart';
 import '../colors.dart';
 import 'package:http/http.dart' as http;
@@ -5,7 +6,7 @@ import 'dart:convert';
 import 'package:dangq/setting_pages/settings_page.dart';
 import 'package:dangq/board/board_page.dart';
 import 'photo_sharing_page.dart';
-import 'package:dangq/work/work.dart';
+import 'package:dangq/work/work_self/work.dart';
 import 'dart:async';
 import 'package:dangq/calendar/calendar.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -543,7 +544,7 @@ class _MainPageState extends State<MainPage> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => Work(username: widget.username),
+            builder: (context) => Walk_choose(username: widget.username),
           ),
         );
         break;

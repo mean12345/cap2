@@ -1,4 +1,4 @@
-//widget_draggable_dst.dart에서 사용하는 걸음수, 시간 형식 관련 코드 파일
+//widget_draggable_dst.dart에서 사용하는 시간 형식 관련 코드 파일
 
 class FormatUtils {
   static String formatDistance(double distance) {
@@ -14,11 +14,6 @@ class FormatUtils {
     else {
       return '${(distance / 1000).toInt()} km';
     }
-  }
-
-  //산책 걸음수 뒤에 걸음 붙이기
-  static String formatWork(int distance) {
-    return '$distance 걸음';
   }
 
   //산책 시간 표시 형식 붙이기

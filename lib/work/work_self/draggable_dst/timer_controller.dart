@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 
+//산책 시간 관리 파일
+
 class TimerController extends ValueNotifier<int> {
   Timer? _timer;
   bool _isRunning = false;
