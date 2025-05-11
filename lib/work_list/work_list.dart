@@ -4,6 +4,11 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/intl.dart';
+import 'package:table_calendar/table_calendar.dart';
+import 'package:fl_chart/fl_chart.dart';
+
+
+
 
 class WorkList extends StatefulWidget {
   final String username;
@@ -15,37 +20,26 @@ class WorkList extends StatefulWidget {
 
 class _WorkListState extends State<WorkList> {
   List<Map<String, dynamic>> workItems = [];
+  Map<DateTime, List<Map<String, dynamic>>> workoutsByDate = {};
   bool isLoading = true;
+  
+  // 캘린더 관련 상태
+  DateTime _focusedDay = DateTime.now();
+  DateTime _selectedDay = DateTime.now();
+  CalendarFormat _calendarFormat = CalendarFormat.month;
+  
+  // 월별 총계 데이터
+  String _monthlyTotalWalkTime = '00:00:00';
+  String _monthlyTotalDistance = '0.00';
+  String _monthlyTotalSteps = '0';
 
   @override
   void initState() {
     super.initState();
     fetchWorkoutData();
-    _fetchProfileInfo(widget.username);
   }
 
   final String baseUrl = dotenv.get('BASE_URL');
-
-  Future<Map<String, String>> _fetchProfileInfo(String username) async {
-    final String baseUrl = dotenv.get('BASE_URL');
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/users/get_nickname?username=$username'),
-      );
-
-      if (response.statusCode == 200) {
-        final jsonResponse = json.decode(response.body);
-        return {
-          'nickname': jsonResponse['nickname'] ?? '닉네임을 불러오는 중...',
-          'profile_picture': jsonResponse['profile_picture'] ?? '',
-        };
-      } else {
-        throw Exception('프로필 정보 불러오기 실패');
-      }
-    } catch (e) {
-      throw Exception('프로필 정보 불러오기 실패: $e');
-    }
-  }
 
   Future<void> fetchWorkoutData() async {
     try {
@@ -65,8 +59,6 @@ class _WorkListState extends State<WorkList> {
 
               if (startTime != null && endTime != null) {
                 duration = endTime.difference(startTime);
-                print(
-                    'start: $startTime, end: $endTime, duration: ${duration.inSeconds}초');
               } else {
                 print('start 또는 end가 null임. 아이템: $item');
               }
@@ -76,14 +68,20 @@ class _WorkListState extends State<WorkList> {
               double distance =
                   double.tryParse(item['distance']?.toString() ?? '0') ?? 0;
 
+              String createdAt = item['created_at']?.toString().split(' ')[0] ??
+                  DateTime.now().toString().split(' ')[0];
+              
               return {
                 'track_id': item['track_id']?.toString() ?? '',
                 'username': item['username']?.toString() ?? '',
                 'walkTime': _formatDuration(duration),
+                'walkTimeDuration': duration,
                 'distance': (distance / 1000).toStringAsFixed(2),
+                'distanceValue': distance / 1000,
                 'steps': stepCount.toString(),
-                'created_at': item['created_at'] ??
-                    DateTime.now().toString(), // toString() 사용
+                'stepsValue': stepCount,
+                'created_at': createdAt,
+                'date': _parseDate(createdAt),
               };
             } catch (e) {
               print('Data processing error: $e');
@@ -91,13 +89,32 @@ class _WorkListState extends State<WorkList> {
                 'track_id': item['track_id']?.toString() ?? '',
                 'username': item['username']?.toString() ?? '',
                 'walkTime': '00:00:00',
+                'walkTimeDuration': Duration(),
                 'distance': '0.00',
+                'distanceValue': 0.0,
                 'steps': '0',
+                'stepsValue': 0,
                 'created_at': DateTime.now().toString().split(' ')[0],
+                'date': DateTime.now(),
               };
             }
           }).toList();
+          
+          // 날짜별로 운동 데이터 그룹화
+          workoutsByDate = {};
+          for (var item in workItems) {
+            DateTime date = item['date'];
+            DateTime dateOnly = DateTime(date.year, date.month, date.day);
+            if (workoutsByDate[dateOnly] == null) {
+              workoutsByDate[dateOnly] = [];
+            }
+            workoutsByDate[dateOnly]!.add(item);
+          }
+          
           isLoading = false;
+          
+          // 현재 보고 있는 월의 총계 데이터 계산
+          _calculateMonthlyTotals();
         });
       }
     } catch (e) {
@@ -107,12 +124,49 @@ class _WorkListState extends State<WorkList> {
       });
     }
   }
+  
+  // 월별 총계 계산 함수
+  void _calculateMonthlyTotals() {
+    try {
+      final int currentMonth = _focusedDay.month;
+      final int currentYear = _focusedDay.year;
+      
+      Duration totalDuration = Duration();
+      double totalDistance = 0.0;
+      int totalSteps = 0;
+      
+      for (var item in workItems) {
+        DateTime itemDate = item['date'];
+        if (itemDate.month == currentMonth && itemDate.year == currentYear) {
+          totalDuration += item['walkTimeDuration'] as Duration;
+          totalDistance += item['distanceValue'] as double;
+          totalSteps += item['stepsValue'] as int;
+        }
+      }
+      
+      setState(() {
+        _monthlyTotalWalkTime = _formatDuration(totalDuration);
+        _monthlyTotalDistance = totalDistance.toStringAsFixed(2);
+        _monthlyTotalSteps = totalSteps.toString();
+      });
+    } catch (e) {
+      print('월별 총계 계산 오류: $e');
+    }
+  }
+
+  DateTime _parseDate(String dateString) {
+    try {
+      return DateTime.parse(dateString);
+    } catch (e) {
+      print('날짜 파싱 실패: $e');
+      return DateTime.now();
+    }
+  }
 
   DateTime? _parseKoreanDateTime(String? dateString) {
     if (dateString == null || dateString.isEmpty) {
       return null;
     }
-
     try {
       return DateFormat('yyyy. M. d. a h:mm:ss', 'ko_KR').parse(dateString);
     } catch (e) {
@@ -135,10 +189,20 @@ class _WorkListState extends State<WorkList> {
       final response = await http.delete(
         Uri.parse('$baseUrl/tracking/$trackId'),
       );
-
       if (response.statusCode == 200) {
         setState(() {
           workItems.removeWhere((item) => item['track_id'] == trackId);
+          // 다시 그룹화
+          workoutsByDate = {};
+          for (var item in workItems) {
+            DateTime date = item['date'];
+            DateTime dateOnly = DateTime(date.year, date.month, date.day);
+            if (workoutsByDate[dateOnly] == null) {
+              workoutsByDate[dateOnly] = [];
+            }
+            workoutsByDate[dateOnly]!.add(item);
+          }
+          _calculateMonthlyTotals();
         });
       }
     } catch (e) {
@@ -148,61 +212,245 @@ class _WorkListState extends State<WorkList> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      home: Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: AppBar(
-          toolbarHeight: MediaQuery.of(context).size.height * 0.05,
-          leading: GestureDetector(
-            onTap: () => Navigator.pop(context),
-            child: Image.asset('assets/images/back.png'),
-          ),
-          backgroundColor: Colors.transparent,
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        toolbarHeight: MediaQuery.of(context).size.height * 0.05,
+        leading: GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: Image.asset('assets/images/back.png'),
         ),
-        body: isLoading
-            ? Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
-                child: Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: _buildWorkoutList(),
+        title: Text(
+          '산책 기록',
+          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w300),
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
+      body: isLoading
+          ? Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                _buildCalendar(),
+                _buildMonthlyTotalSection(),
+                _buildPathViewButton(_selectedDay),
+                Expanded(
+                  child: _buildSelectedDayWorkouts(),
                 ),
+              ],
+            ),
+    );
+  }
+  
+  // 월별 총계 섹션
+  Widget _buildMonthlyTotalSection() {
+    final String monthName = DateFormat('yyyy년 M월').format(_focusedDay);
+    return Container(
+      margin: EdgeInsets.fromLTRB(8, 0, 8, 8),
+      padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.2),
+            spreadRadius: 1,
+            blurRadius: 3,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: EdgeInsets.only(bottom: 12),
+            child: Text(
+              '$monthName 산책 기록',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
               ),
+            ),
+          ),
+          Row(
+            children: [
+              _buildMonthlySummaryCard(
+                '총 소요 시간',
+                _monthlyTotalWalkTime, 
+                Icons.access_time,
+              ),
+              SizedBox(width: 8),
+              _buildMonthlySummaryCard(
+                '총 이동 거리',
+                '$_monthlyTotalDistance km', 
+                Icons.straighten,
+              ),
+              SizedBox(width: 8),
+              _buildMonthlySummaryCard(
+                '총 속력',
+                '$_monthlyTotalSteps km/h', 
+                Icons.directions_walk,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildMonthlySummaryCard(String title, String value, IconData icon) {
+    return Expanded(
+      child: Container(
+        padding: EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: AppColors.green.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppColors.green.withOpacity(0.3), width: 1),
+        ),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 16, color: AppColors.green),
+                SizedBox(width: 4),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 8),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildWorkoutList() {
-    if (workItems.isEmpty) {
-      return Center(child: Text('산책 기록이 없습니다.'));
-    }
-
-    List<Widget> listItems = [];
-
-    for (var item in workItems) {
-      listItems.add(_buildWorkListSection(item));
-      listItems.add(SizedBox(height: 20));
-    }
-
-    return Column(children: listItems);
-  }
-
-  Widget _buildWorkListSection(Map<String, dynamic> item) {
-    return WorkListItem(
-      walkTime: item['walkTime'],
-      distance: item['distance'],
-      steps: item['steps'],
-      username: item['username'],
-      createdAt: _formatDate(item['created_at']),
-      onDelete: () => _showDeleteConfirmation(item),
+  Widget _buildCalendar() {
+    return Container(
+      margin: EdgeInsets.all(8.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.2),
+            spreadRadius: 1,
+            blurRadius: 3,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TableCalendar(
+        firstDay: DateTime.utc(2020, 1, 1),
+        lastDay: DateTime.utc(2030, 12, 31),
+        focusedDay: _focusedDay,
+        calendarFormat: _calendarFormat,
+        eventLoader: (day) {
+          final dateOnly = DateTime(day.year, day.month, day.day);
+          return workoutsByDate[dateOnly] ?? [];
+        },
+        selectedDayPredicate: (day) {
+          return isSameDay(_selectedDay, day);
+        },
+        onDaySelected: (selectedDay, focusedDay) {
+          if (!isSameDay(_selectedDay, selectedDay)) {
+            setState(() {
+              _selectedDay = selectedDay;
+              _focusedDay = focusedDay;
+            });
+          }
+        },
+        onFormatChanged: (format) {
+          if (_calendarFormat != format) {
+            setState(() {
+              _calendarFormat = format;
+            });
+          }
+        },
+        onPageChanged: (focusedDay) {
+          setState(() {
+            _focusedDay = focusedDay;
+            _calculateMonthlyTotals();
+          });
+        },
+        calendarStyle: CalendarStyle(
+          markerDecoration: BoxDecoration(
+            color: AppColors.green,
+            shape: BoxShape.circle,
+          ),
+          todayDecoration: BoxDecoration(
+            color: AppColors.green.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          selectedDecoration: BoxDecoration(
+            border: Border.all(color: AppColors.green, width: 2),
+            shape: BoxShape.circle,
+          ),
+          selectedTextStyle: TextStyle(
+            color: Colors.black87,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        headerStyle: HeaderStyle(
+          formatButtonVisible: true,
+          titleCentered: true,
+          formatButtonShowsNext: false,
+        ),
+      ),
     );
   }
 
-  String _formatDate(String dateString) {
+  Widget _buildSelectedDayWorkouts() {
+    final dateOnly = DateTime(_selectedDay.year, _selectedDay.month, _selectedDay.day);
+    final selectedWorkouts = workoutsByDate[dateOnly] ?? [];
+    
+    if (selectedWorkouts.isEmpty) {
+      return Center(
+        child: Text(
+          '이 날의 산책 기록이 없습니다.',
+          style: TextStyle(color: Colors.grey[600], fontSize: 16),
+        ),
+      );
+    }
+    
+    return ListView.builder(
+      padding: EdgeInsets.all(16),
+      itemCount: selectedWorkouts.length,
+      itemBuilder: (context, index) {
+        final workout = selectedWorkouts[index];
+        return Padding(
+          padding: EdgeInsets.only(bottom: 16),
+          child: WorkListItem(
+            walkTime: workout['walkTime'],
+            distance: workout['distance'],
+            steps: workout['steps'],
+            username: workout['username'],
+            createdAt: _formatDisplayDate(workout['created_at']),
+            onDelete: () => _showDeleteConfirmation(workout),
+          ),
+        );
+      },
+    );
+  }
+
+  String _formatDisplayDate(String dateString) {
     try {
       DateTime dateTime = DateTime.parse(dateString);
-      return DateFormat('yyyy년 MM월 dd일').format(dateTime);
+      return DateFormat('yyyy-MM-dd HH:mm').format(dateTime);
     } catch (e) {
-      print('Date formatting error: $e');
       return dateString;
     }
   }
@@ -264,6 +512,66 @@ class _WorkListState extends State<WorkList> {
       },
     );
   }
+
+ Widget _buildPathViewButton(DateTime date) {
+  final dayNumber = _selectedDay.day;
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 8.0),
+    child: SizedBox(
+      width: 350,
+      height: 30, 
+      child: ElevatedButton(
+        onPressed: () {
+          _showPathDialog(_selectedDay);
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.white, // 배경색
+          foregroundColor: Colors.black, // 글씨색
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+        ),
+        child: Text(
+          '$dayNumber일의 경로 보기',
+          style: TextStyle(
+            fontSize: 22, 
+            fontWeight: FontWeight.w300,
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+
+  // 다이얼로그 보여주는 함수
+  void _showPathDialog(DateTime date) {
+    final dateStr = DateFormat('yyyy-MM-dd').format(date);
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('산책 경로'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('날짜: $dateStr'),
+              SizedBox(height: 10),
+              Icon(Icons.arrow_forward),
+              SizedBox(height: 10),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop(); // 다이얼로그 닫기
+                  // 필요시, 캘린더로 돌아가는 로직 넣기
+                },
+                child: Text('캘린더로 돌아가기'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 }
 
 class WorkListItem extends StatelessWidget {
@@ -287,183 +595,461 @@ class WorkListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 230,
+      height: 180,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(5),
+        borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.3),
-            spreadRadius: 2,
-            blurRadius: 5,
-            offset: Offset(0, 3),
+            color: Colors.grey.withOpacity(0.2),
+            spreadRadius: 1,
+            blurRadius: 3,
+            offset: Offset(0, 2),
           ),
         ],
       ),
       child: Column(
         children: [
-          _buildHeaderSection(),
-          _buildContentSection(),
-        ],
-      ),
-    );
-  }
-
-  Future<Map<String, String>> _fetchProfileInfo(String username) async {
-    final String baseUrl = dotenv.get('BASE_URL');
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/users/get_nickname?username=$username'),
-      );
-
-      if (response.statusCode == 200) {
-        final jsonResponse = json.decode(response.body);
-        return {
-          'nickname': jsonResponse['nickname'] ?? '닉네임을 불러오는 중...',
-          'profile_picture': jsonResponse['profile_picture'] ?? '',
-        };
-      } else {
-        throw Exception('프로필 정보 불러오기 실패');
-      }
-    } catch (e) {
-      throw Exception('프로필 정보 불러오기 실패: $e');
-    }
-  }
-
-  Widget _buildHeaderSection() {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          // 헤더
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
                   children: [
-                    FutureBuilder<Map<String, String>>(
-                      future: _fetchProfileInfo(
-                          username), // username을 넘겨서 프로필 정보를 가져옵니다
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return const Text('닉네임을 불러오는 중...');
-                        } else if (snapshot.hasError) {
-                          return const Text('닉네임을 불러오는 데 실패했습니다.');
-                        } else if (snapshot.hasData) {
-                          final profileInfo = snapshot.data!;
-                          return Text(
-                            profileInfo['nickname'] ?? '닉네임을 불러오는 중...',
-                            style: const TextStyle(
-                              color: Colors.black,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          );
-                        } else {
-                          return const Text('닉네임을 불러오는 중...');
-                        }
-                      },
+                    Text(
+                      username,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                    const SizedBox(width: 10),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 15),
-                      child: Text(
-                        createdAt,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: Colors.grey,
-                        ),
+                    SizedBox(width: 10),
+                    Text(
+                      createdAt,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey,
                       ),
                     ),
                   ],
                 ),
-              ),
-              GestureDetector(
-                onTap: onDelete,
-                child: const Icon(
-                  Icons.delete_outline,
-                  color: Colors.grey,
-                  size: 24,
+                GestureDetector(
+                  onTap: onDelete,
+                  child: Icon(
+                    Icons.delete_outline,
+                    color: Colors.grey,
+                    size: 22,
+                  ),
                 ),
-              )
-            ],
+              ],
+            ),
           ),
-        ),
-        Container(
-          height: 1,
-          color: Colors.grey.withOpacity(0.3),
-          margin: const EdgeInsets.only(
-            top: 2,
-            left: 15,
-            right: 15,
-            bottom: 20,
+          Divider(),
+          // 내용
+          Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildInfoColumn("소요 시간", walkTime),
+                _buildDivider(),
+                _buildInfoColumn("이동 거리", "$distance km"),
+                _buildDivider(),
+                _buildInfoColumn("속력", "$steps km/h"),
+              ],
+            ),
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildContentSection() {
-    return Padding(
-      padding: EdgeInsets.only(top: 10),
-      child: Column(
-        children: [
-          _buildInfoRow("산책 시간", walkTime.isNotEmpty ? walkTime : '00:00:00'),
-          SizedBox(height: 15),
-          _buildInfoRow("산책 거리", "$distance km"),
-          SizedBox(height: 15),
-          _buildInfoRow("걸 음 수", "$steps 걸음"),
         ],
       ),
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+
+  Widget _buildInfoColumn(String label, String value) {
+    return Expanded(
+      child: Column(
         children: [
-          SizedBox(
-            width: 125,
-            child: Padding(
-              padding: EdgeInsets.only(left: 40),
-              child: Text(
-                label,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey[600],
-                ),
-              ),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
             ),
           ),
-          Container(
-            width: 20,
-            alignment: Alignment.center,
-            child: Text(
-              ":",
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(left: 25, right: 15),
-              child: Text(
-                value,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+          SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDivider() {
+    return Container(
+      height: 40,
+      width: 1,
+      color: Colors.grey.withOpacity(0.2),
+    );
+  }
+}
+
+void main() {
+  runApp(MaterialApp(
+    home: Scaffold(
+      appBar: AppBar(title: Text('산책 기록 그래프프')),
+      body: Center(
+        child: SizedBox(
+          width: 350,
+          height: 300,
+          child: LineChart(
+            LineChartData(
+              titlesData: FlTitlesData(
+                bottomTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    getTitlesWidget: (value, meta) {
+                      switch (value.toInt()) {
+                        case 0:
+                          return Text('1주차');
+                        case 1:
+                          return Text('2주차');
+                        case 2:
+                          return Text('3주차');
+                        case 3:
+                          return Text('4주차');
+                        case 4:
+                          return Text('5주차');
+                        default:
+                          return Text('');
+                      }
+                    },
+                  ),
+                ),
+              ),
+              lineBarsData: [
+                LineChartBarData(
+                  spots: [
+                    FlSpot(0, 3),
+                    FlSpot(1, 2),
+                    FlSpot(2, 5),
+                    FlSpot(3, 3.5),
+                    FlSpot(4, 4),
+                  ],
+                  isCurved: true,
+                  color: Colors.blue,
+                  barWidth: 3,
+                  dotData: FlDotData(show: true),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ),
+  ));
+}
+class LineChartSample extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('선그래프 예시')),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: LineChart(
+          LineChartData(
+            titlesData: FlTitlesData(
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  getTitlesWidget: (value, meta) {
+                    switch (value.toInt()) {
+                      case 0:
+                        return Text('1주차');
+                      case 1:
+                        return Text('2주차');
+                      case 2:
+                        return Text('3주차');
+                      case 3:
+                        return Text('4주차');
+                      case 4:
+                        return Text('5주차');
+                      default:
+                        return Text('');
+                    }
+                  },
+                ),
+              ),
+            ),
+            lineBarsData: [
+              LineChartBarData(
+                spots: [
+                  FlSpot(0, 3),
+                  FlSpot(1, 2),
+                  FlSpot(2, 5),
+                  FlSpot(3, 3.5),
+                  FlSpot(4, 4),
+                ],
+                isCurved: true,
+                color: Colors.blue,
+                barWidth: 3,
+                dotData: FlDotData(show: true),
+              ),
+              // 다른 선 그래프 데이터도 추가 가능
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+class work extends StatefulWidget {
+  const work({super.key});
+
+  @override
+  State<work> createState() => _HomeScreenState();
+}
+class _HomeScreenState extends State<work> {
+  CalendarFormat _calendarFormat = CalendarFormat.month;
+  DateTime _focusedDay = DateTime.now();
+  DateTime? _selectedDay;
+  final Set<DateTime> _walkDays = {};
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        centerTitle: true,
+        title: const CircleAvatar(
+          radius: 25,
+          backgroundImage: NetworkImage('https://i.imgur.com/qgaYJWX.png'), // 기본 강아지 이미지
+          backgroundColor: Colors.grey,
+        ),
+      ),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            TableCalendar(
+              firstDay: DateTime.utc(2024, 1, 1),
+              lastDay: DateTime.utc(2025, 12, 31),
+              focusedDay: _focusedDay,
+              calendarFormat: _calendarFormat,
+              selectedDayPredicate: (day) {
+                return isSameDay(_selectedDay, day);
+              },
+              onDaySelected: (selectedDay, focusedDay) {
+                setState(() {
+                  _selectedDay = selectedDay;
+                  _focusedDay = focusedDay;
+                });
+              },
+              onFormatChanged: (format) {
+                setState(() {
+                  _calendarFormat = format;
+                });
+              },
+              eventLoader: (day) {
+                return _walkDays.contains(day) ? ['산책'] : [];
+              },
+              calendarStyle: const CalendarStyle(
+                markerDecoration: BoxDecoration(
+                  color: Colors.green,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildStatCard('이동거리', '-km'),
+                  _buildStatCard('평균 속력', '-km/h'),
+                  _buildStatCard('소요시간', '-시간'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              height: 200,
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  const Text(
+                    '이동거리 그래프',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  Expanded(
+                    child: LineChart(
+                      LineChartData(
+                        gridData: const FlGridData(show: true),
+                        titlesData: FlTitlesData(
+                          leftTitles: AxisTitles(
+                            sideTitles: SideTitles(showTitles: true, reservedSize: 40, getTitlesWidget: (value, meta) {
+                              return Text('${value.toInt()} km'); // 이동거리 y축
+                            })),
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(showTitles: true, reservedSize: 40, getTitlesWidget: (value, meta) {
+                              return Text('${value.toInt() + 1}주차'); // 주차 x축 (0부터 시작하므로 +1)
+                            })),
+                        ),
+                        borderData: FlBorderData(show: true),
+                        lineBarsData: [
+                          LineChartBarData(
+                            spots: const [
+                              FlSpot(0, 1), // 1주차, 1km
+                              FlSpot(1, 2), // 2주차, 2km
+                              FlSpot(2, 3), // 3주차, 3km
+                              FlSpot(3, 4), // 4주차, 4km
+                              FlSpot(4, 5), // 5주차, 5km
+                            ],
+                            isCurved: true,
+                            color: Colors.green,
+                            barWidth: 3,
+                            dotData: const FlDotData(show: false),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              height: 200,
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  const Text(
+                    '속력 그래프',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  Expanded(
+                    child: LineChart(
+                      LineChartData(
+                        gridData: const FlGridData(show: true),
+                        titlesData: FlTitlesData(
+                          leftTitles: AxisTitles(
+                            sideTitles: SideTitles(showTitles: true, reservedSize: 40, getTitlesWidget: (value, meta) {
+                              return Text('${value.toInt()} km/h'); // 속력 y축
+                            })),
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(showTitles: true, reservedSize: 40, getTitlesWidget: (value, meta) {
+                              return Text('${value.toInt() + 1}주차'); // 주차 x축 (0부터 시작하므로 +1)
+                            })),
+                        ),
+                        borderData: FlBorderData(show: true),
+                        lineBarsData: [
+                          LineChartBarData(
+                            spots: const [
+                              FlSpot(0, 1), // 1주차, 1km/h
+                              FlSpot(1, 2), // 2주차, 2km/h
+                              FlSpot(2, 3), // 3주차, 3km/h
+                              FlSpot(3, 4), // 4주차, 4km/h
+                              FlSpot(4, 5), // 5주차, 5km/h
+                            ],
+                            isCurved: true,
+                            color: Colors.blue,
+                            barWidth: 3,
+                            dotData: const FlDotData(show: false),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              height: 200,
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  const Text(
+                    '소요시간 그래프',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  Expanded(
+                    child: LineChart(
+                      LineChartData(
+                        gridData: const FlGridData(show: true),
+                        titlesData: FlTitlesData(
+                          leftTitles: AxisTitles(
+                            sideTitles: SideTitles(showTitles: true, reservedSize: 40, getTitlesWidget: (value, meta) {
+                              return Text('${(value.toInt() * 30).toString().padLeft(2, '0')}:00'); // 소요시간 y축
+                            })),
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(showTitles: true, reservedSize: 40, getTitlesWidget: (value, meta) {
+                              return Text('${value.toInt() + 1}주차'); // 주차 x축 (0부터 시작하므로 +1)
+                            })),
+                        ),
+                        borderData: FlBorderData(show: true),
+                        lineBarsData: [
+                          LineChartBarData(
+                            spots: const [
+                              FlSpot(0, 0), // 1주차, 00:00
+                              FlSpot(1, 1), // 2주차, 00:30
+                              FlSpot(2, 2), // 3주차, 01:00
+                              FlSpot(3, 3), // 4주차, 01:30
+                              FlSpot(4, 4), // 5주차, 02:00
+                            ],
+                            isCurved: true,
+                            color: Colors.red,
+                            barWidth: 3,
+                            dotData: const FlDotData(show: false),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          setState(() {
+            _walkDays.add(_focusedDay);
+          });
+        },
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  Widget _buildStatCard(String title, String value) {
+    return Card(
+      elevation: 4,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 18,
+                color: Colors.green,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
