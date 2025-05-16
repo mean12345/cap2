@@ -4,11 +4,10 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:dangq/setting_pages/settings_page.dart';
 import 'package:dangq/board/board_page.dart';
-import 'package:dangq/work/work.dart';
+import 'package:dangq/work/walk_choose.dart';
 import 'dart:async';
 import 'package:dangq/calendar/calendar.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:dangq/work_list/work_list.dart';
 import 'add_dog_page.dart';
 
 class MainPage extends StatefulWidget {
@@ -483,10 +482,30 @@ class _MainPageState extends State<MainPage> {
         );
         break;
       case "산책":
+        // 현재 선택된 강아지가 있는지 확인
+        if (dogProfiles.isEmpty) {
+          // 등록된 강아지가 없는 경우 알림 표시
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('등록된 강아지가 없습니다. 먼저 강아지를 등록해주세요.')),
+          );
+          return;
+        }
+
+        // 현재 선택된 강아지 정보 가져오기
+        final currentDog = dogProfiles[_currentPhotoIndex];
+        final dogId = currentDog['id'];
+        final dogName = currentDog['dog_name'];
+
+        print('선택한 강아지: $dogName (ID: $dogId)로 산책하기');
+
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => Work(username: widget.username),
+            builder: (context) => WalkChoose(
+              username: widget.username,
+              dogId: dogId,
+              dogName: dogName,
+            ),
           ),
         );
         break;

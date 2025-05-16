@@ -12,7 +12,6 @@ router.post('/', async (req, res) => {
         username,
         content,
         image_url,
-        video_url,
     }); // 디버깅용 로그
 
     try {
@@ -78,7 +77,6 @@ router.get('/:username', async (req, res) => {
               p.post_id, 
               p.content, 
               p.image_url, 
-              p.video_url,    -- 비디오 URL 추가
               p.created_at, 
               u.username
              FROM posts p
@@ -130,7 +128,7 @@ router.delete('/:postId', async (req, res) => {
         await db.promise().query('START TRANSACTION');
 
         const [post] = await db.promise().query(
-            `SELECT p.*, u.username, p.image_url, p.video_url 
+            `SELECT p.*, u.username, p.image_url
              FROM posts p 
              JOIN users u ON p.user_id = u.user_id 
              WHERE p.post_id = ?`,
