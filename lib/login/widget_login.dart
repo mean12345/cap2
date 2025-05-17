@@ -168,25 +168,6 @@ abstract class BaseLoginState<T extends StatefulWidget> extends State<T> {
     );
   }
 
-  //구글 로그인 버튼
-  Widget buildGoogleSignInButton() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.start,
-      children: [
-        OutlinedButton.icon(
-          onPressed: () {},
-          icon: Icon(Icons.login, color: Colors.black),
-          label: Text('Sign in with Google',
-              style: TextStyle(color: Colors.black)),
-          style: OutlinedButton.styleFrom(
-            minimumSize: Size(200, 40),
-            side: BorderSide(color: Colors.black),
-          ),
-        ),
-      ],
-    );
-  }
-
   //박스의 그림자
   BoxDecoration buildShadowBox() {
     return BoxDecoration(
