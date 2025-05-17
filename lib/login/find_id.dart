@@ -203,24 +203,15 @@ class _FindIdState extends BaseLoginState<FindId> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: true,
       backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: Colors.grey[100],
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        title: Text('아이디 찾기', style: TextStyle(color: Colors.black)),
+      ),
       body: Stack(
         children: [
-          Positioned(
-            top: MediaQuery.of(context).size.height * 0.05,
-            left: 16,
-            child: GestureDetector(
-              onTap: () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const Login()),
-                );
-                print("뒤로 가기 버튼 클릭");
-              },
-              child: Image.asset('assets/images/back.png'),
-            ),
-          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(45.0, 100.0, 45.0, 45.0),
             child: Column(
