@@ -110,6 +110,8 @@ class _CalendarPageState extends State<CalendarPage> {
     if (response.statusCode == 200) {
       print("✅ 일정이 수정되었습니다.");
       Navigator.pop(context);
+      // 일정 수정 후 캘린더 새로고침
+      _fetchAllEvents();
 
       // 선택적: 성공 메시지 표시
       ScaffoldMessenger.of(context).showSnackBar(
@@ -147,25 +149,15 @@ class _CalendarPageState extends State<CalendarPage> {
   final String baseUrl = dotenv.get('BASE_URL');
 // 일정 삭제 함수
   Future<void> _deleteEvent(int eventId) async {
-    // 서버 URL에 맞게 수정 (확인해야 할 URL 경로)
     final response = await http.delete(
       Uri.parse(
-          '$baseUrl/calendar/${widget.username}/delete/$eventId'), // 서버 경로 수정
+          '$baseUrl/calendar/${widget.username}/delete/$eventId'),
     );
 
-    // 응답 상태 코드가 200일 경우
     if (response.statusCode == 200) {
       print('Event deleted successfully');
-
-      // 이벤트 삭제 후 로컬 이벤트 목록에서 제거
-      setState(() {
-        _events.forEach((date, events) {
-          events.removeWhere((event) => event.eventId == eventId.toString());
-          if (events.isEmpty) {
-            _events.remove(date); // 해당 날짜의 이벤트 목록이 비었으면 날짜도 삭제
-          }
-        });
-      });
+      // 일정 삭제 후 캘린더 새로고침
+      _fetchAllEvents();
     } else {
       print('Failed to delete event. Status code: ${response.statusCode}');
     }
@@ -284,7 +276,7 @@ class _CalendarPageState extends State<CalendarPage> {
                 Column(
                   children: [
                     Container(
-                      height: constraints.maxHeight * 0.67,
+                      height: constraints.maxHeight * 0.8,
                       color: Colors.white,
                       child: TableCalendar(
                         firstDay: DateTime.utc(2020, 1, 1),
@@ -387,18 +379,20 @@ class _CalendarPageState extends State<CalendarPage> {
                           markerBuilder: (context, date, events) {
                             if (events.isNotEmpty) {
                               final eventsList = events as List<Event>;
+                              // 최대 5개의 마커만 표시
+                              final displayEvents = eventsList.take(5).toList();
                               return Positioned(
-                                bottom: 5,
-                                left: 1,
-                                right: 1,
+                                bottom: 1,
+                                left: 0,
+                                right: 0,
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
-                                  children: eventsList.map((event) {
+                                  children: displayEvents.map((event) {
                                     return Container(
-                                      width: 8,
-                                      height: 8,
+                                      width: 6,
+                                      height: 6,
                                       margin: const EdgeInsets.symmetric(
-                                          horizontal: 4),
+                                          horizontal: 1),
                                       decoration: BoxDecoration(
                                         color: event.color.withOpacity(0.7),
                                         shape: BoxShape.circle,
@@ -469,8 +463,8 @@ class _CalendarPageState extends State<CalendarPage> {
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black26, // 그림자 색상
-                            blurRadius: 10.0, // 그림자 흐림 정도
-                            spreadRadius: 5.0, // 그림자 확산 정도
+                            blurRadius: 1.0, // 그림자 흐림 정도
+                            spreadRadius: 1.0, // 그림자 확산 정도
                           ),
                         ],
                       ),
@@ -659,11 +653,7 @@ class _CalendarPageState extends State<CalendarPage> {
   }
 
   void _showAddEventDialog() {
-    if (_selectedDay != null && _getEventsForDay(_selectedDay!).length >= 5) {
-      _showMaxEventsDialog();
-      return;
-    }
-
+    // 일정 개수 제한 체크 제거
     final TextEditingController _titleController = TextEditingController();
     bool _isAllDay = false;
     DateTime _startDate = _selectedDay ?? DateTime.now();
@@ -902,6 +892,8 @@ class _CalendarPageState extends State<CalendarPage> {
                   if (response.statusCode == 201) {
                     print("일정이 성공적으로 추가되었습니다.");
                     Navigator.pop(context);
+                    // 일정 생성 후 캘린더 새로고침
+                    _fetchAllEvents();
                   } else {
                     print("일정 추가 실패: ${response.body}");
                   }
@@ -912,22 +904,6 @@ class _CalendarPageState extends State<CalendarPage> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  void _showMaxEventsDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('일정 추가 불가'),
-        content: Text('한 날짜에 최대 5개의 일정만 추가할 수 있습니다.'),
-        actions: [
-          TextButton(
-            child: Text('확인'),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
       ),
     );
   }
@@ -948,6 +924,7 @@ class _CalendarPageState extends State<CalendarPage> {
       barrierColor: Colors.black.withOpacity(0.5),
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
+          backgroundColor: Colors.white,
           title: Text('일정 수정'),
           content: SingleChildScrollView(
             // AlertDialog의 content를 ScrollView로 감싸기
