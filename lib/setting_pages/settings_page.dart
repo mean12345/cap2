@@ -238,7 +238,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     style: const TextStyle(color: Colors.black),
                   ),
                   const Text(
-                    '24시간 동안 유효합니다.',
+                    '10분 동안 유효합니다.',
                     style: TextStyle(color: Colors.black),
                   ),
                 ],
@@ -578,14 +578,17 @@ class _SettingsPageState extends State<SettingsPage> {
                                     borderRadius: BorderRadius.circular(5),
                                   ),
                                 ),
-                                onPressed: () {
-                                  Navigator.push(
+                                onPressed: () async {
+                                  final result = await Navigator.push(
                                     context,
                                     MaterialPageRoute(
                                       builder: (context) => EditProfilePage(
                                           username: widget.username),
                                     ),
                                   );
+                                  if (result == true) {
+                                    setState(() {});
+                                  }
                                 },
                                 child: const Text('프로필 수정'),
                               ),
@@ -626,8 +629,8 @@ class _SettingsPageState extends State<SettingsPage> {
                         if (userRole == 'leader')
                           ListTile(
                             leading: const Icon(
-                              Icons.group,
-                              size: 35, // 크기 증가
+                              Icons.person,
+                              size: 35,
                             ),
                             title: const Text('멤버 목록'),
                             subtitle: relatedUsers.isEmpty
@@ -637,8 +640,8 @@ class _SettingsPageState extends State<SettingsPage> {
                         else
                           ListTile(
                             leading: const Icon(
-                              Icons.supervisor_account,
-                              size: 35, // 크기 증가
+                              Icons.person,
+                              size: 35,
                             ),
                             title: const Text('리더'),
                             subtitle: relatedUsers.isEmpty
@@ -648,8 +651,8 @@ class _SettingsPageState extends State<SettingsPage> {
                         if (otherMembers.isNotEmpty)
                           ListTile(
                             leading: const Icon(
-                              Icons.group,
-                              size: 35, // 크기 증가
+                              Icons.person,
+                              size: 35,
                             ),
                             title: const Text('다른 멤버'),
                             subtitle: Text(otherMembers.join(', ')),
