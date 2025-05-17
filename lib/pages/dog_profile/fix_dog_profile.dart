@@ -49,6 +49,7 @@ class _Fix_dogState extends State<Fix_dog> {
               child: Column(
                 children: [
                   SizedBox(height: 80), // 120에서 80으로 줄임
+                  //상단 프로필 사진
                   Container(
                     width: 160,
                     height: 160,
@@ -67,10 +68,12 @@ class _Fix_dogState extends State<Fix_dog> {
                     ),
                   ),
                   SizedBox(height: 30), // 동그라미와 텍스트 필드 사이 간격
+                  //이름 텓스트 및 텍스트 상자
                   Container(
                     margin: EdgeInsets.symmetric(horizontal: 20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      //텍스트 상자 위의 이름
                       children: [
                         Text(
                           '이름',
@@ -80,6 +83,7 @@ class _Fix_dogState extends State<Fix_dog> {
                           ),
                         ),
                         SizedBox(height: 8),
+                        //텍스트 상자
                         Container(
                           decoration: BoxDecoration(
                             color: Colors.white,
@@ -107,6 +111,7 @@ class _Fix_dogState extends State<Fix_dog> {
               ),
             ),
           ),
+          //저장하기
           Container(
             width: double.infinity,
             height: 55,

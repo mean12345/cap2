@@ -19,7 +19,8 @@ class _DogProfileState extends State<DogProfile> {
         Navigator.push(
           context,
           MaterialPageRoute(
-              builder: (context) => const Fix_dog()), // Fix_dog로 변경
+              builder: (context) =>
+                  const Fix_dog()), ////프로필을 누르면 프로필 수정 페이지로 이동
         );
       },
       child: Column(
@@ -52,7 +53,8 @@ class _DogProfileState extends State<DogProfile> {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => const Add_dog()),
+          MaterialPageRoute(
+              builder: (context) => const Add_dog()), //+을 누르면 프로필 생성성 페이지로 이동
         );
       },
       child: Column(
