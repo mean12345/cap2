@@ -41,8 +41,6 @@ class _LoginState extends BaseLoginState<Login> {
                 buildLoginButton(), //로그인 버튼
                 const SizedBox(height: 8),
                 buildIdpasswordBottomLinks(), //아이디, 비밀번호 찾기
-                const SizedBox(height: 16),
-                buildGoogleSignInButton(), //구글 로그인 버튼
               ],
             ),
           ),
