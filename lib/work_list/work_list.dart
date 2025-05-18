@@ -5,8 +5,7 @@ import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
-
-건들ㅈ리마셈
+import 'package:dangq/work/dog_list.dart';
   
 class WorkList extends StatefulWidget {
   final String username;
@@ -21,6 +20,11 @@ class _WorkListState extends State<WorkList> {
   Map<DateTime, List<Map<String, dynamic>>> workoutsByDate = {};
   bool isLoading = true;
   
+  // 강아지 프로필 관련 상태
+  List<Map<String, dynamic>> dogProfiles = [];
+  bool _isLoading = false;
+  int _currentPhotoIndex = 0;
+  
   // 캘린더 관련 상태
   DateTime _focusedDay = DateTime.now();
   DateTime _selectedDay = DateTime.now();
@@ -34,6 +38,7 @@ class _WorkListState extends State<WorkList> {
   @override
   void initState() {
     super.initState();
+    _fetchDogProfiles();
     fetchWorkoutData();
   }
 
@@ -83,20 +88,9 @@ class _WorkListState extends State<WorkList> {
               };
             } catch (e) {
               print('Data processing error: $e');
-              return {
-                'track_id': item['track_id']?.toString() ?? '',
-                'username': item['username']?.toString() ?? '',
-                'walkTime': '00:00:00',
-                'walkTimeDuration': Duration(),
-                'distance': '0.00',
-                'distanceValue': 0.0,
-                'steps': '0',
-                'stepsValue': 0,
-                'created_at': DateTime.now().toString().split(' ')[0],
-                'date': DateTime.now(),
-              };
+              return null;
             }
-          }).toList();
+          }).where((item) => item != null).cast<Map<String, dynamic>>().toList();
           
           // 날짜별로 운동 데이터 그룹화
           workoutsByDate = {};
@@ -109,14 +103,26 @@ class _WorkListState extends State<WorkList> {
             workoutsByDate[dateOnly]!.add(item);
           }
           
-          isLoading = false;
-          
           // 현재 보고 있는 월의 총계 데이터 계산
           _calculateMonthlyTotals();
         });
+      } else if (response.statusCode == 404) {
+        // 데이터가 없는 경우
+        setState(() {
+          workItems = [];
+          workoutsByDate = {};
+          _calculateMonthlyTotals();
+        });
+      } else {
+        print('Error response: ${response.statusCode}');
+        throw Exception('Failed to load workout data');
       }
     } catch (e) {
       print('Error fetching data: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('산책 기록을 불러오는데 실패했습니다.')),
+      );
+    } finally {
       setState(() {
         isLoading = false;
       });
@@ -205,6 +211,63 @@ class _WorkListState extends State<WorkList> {
       }
     } catch (e) {
       print('Error deleting workout: $e');
+    }
+  }
+
+  Future<void> _fetchDogProfiles() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final url = '$baseUrl/dogs/get_dogs?username=${widget.username}';
+      print('요청 URL: $url');
+
+      final response = await http.get(Uri.parse(url));
+      print('응답 상태 코드: ${response.statusCode}');
+      print('응답 본문: ${response.body}');
+
+      if (response.statusCode == 404) {
+        setState(() {
+          dogProfiles = [];
+          _currentPhotoIndex = 0;
+          _isLoading = false;
+        });
+        return;
+      }
+
+      if (response.statusCode == 200) {
+        final List<dynamic> jsonResponse = json.decode(response.body);
+
+        setState(() {
+          dogProfiles = jsonResponse
+              .map<Map<String, dynamic>>((dog) => {
+                    'dog_name': dog['name'],
+                    'image_url': dog['imageUrl'],
+                    'id': dog['id'],
+                  })
+              .toList();
+
+          if (dogProfiles.isNotEmpty &&
+              _currentPhotoIndex >= dogProfiles.length) {
+            _currentPhotoIndex = dogProfiles.length - 1;
+          }
+
+          _isLoading = false;
+        });
+      } else {
+        print('실패: ${response.statusCode}');
+        setState(() {
+          _isLoading = false;
+        });
+        throw Exception('Failed to load dog profiles');
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      print('예외 발생: $e');
+      rethrow;
     }
   }
 
@@ -354,11 +417,72 @@ class _WorkListState extends State<WorkList> {
       child: Column(
         children: [
           SizedBox(height: 16),
-          CircleAvatar(
-            radius: 24,
-            backgroundImage: AssetImage('assets/images/profile.png'),
-            backgroundColor: Colors.grey[300],
-          ),
+          if (_isLoading)
+            CircularProgressIndicator()
+          else if (dogProfiles.isEmpty)
+            Text('등록된 반려견이 없습니다.')
+          else
+            GestureDetector(
+              onTap: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => DogListPage(
+                      username: widget.username,
+                      onDogSelected: (int id, String name, String imageUrl) {
+                        // 선택한 강아지의 정보를 반환
+                        Navigator.pop(context, {
+                          'id': id,
+                          'name': name,
+                          'imageUrl': imageUrl,
+                        });
+                      },
+                    ),
+                  ),
+                );
+                
+                // DogListPage에서 선택한 강아지 정보가 있으면 업데이트
+                if (result != null) {
+                  setState(() {
+                    _currentPhotoIndex = dogProfiles.indexWhere((d) => d['id'] == result['id']);
+                    // 선택한 강아지의 정보 업데이트
+                    if (_currentPhotoIndex != -1) {
+                      dogProfiles[_currentPhotoIndex] = {
+                        'id': result['id'],
+                        'dog_name': result['name'],
+                        'image_url': result['imageUrl'],
+                      };
+                    }
+                  });
+                }
+              },
+              child: Container(
+                width: 100,
+                height: 100,
+                margin: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  image: dogProfiles[_currentPhotoIndex]['image_url'] != null
+                      ? DecorationImage(
+                          image: NetworkImage(dogProfiles[_currentPhotoIndex]['image_url']),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
+                  color: dogProfiles[_currentPhotoIndex]['image_url'] == null ? Colors.grey[300] : null,
+                ),
+                child: dogProfiles[_currentPhotoIndex]['image_url'] == null
+                    ? Icon(Icons.pets, size: 50, color: Colors.grey)
+                    : null,
+              ),
+            ),
+          if (dogProfiles.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                dogProfiles[_currentPhotoIndex]['dog_name'] ?? '',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              ),
+            ),
           SizedBox(height: 8),
           TableCalendar(
             locale: 'ko_KR',
