@@ -4,13 +4,15 @@ const db = require('../config/database');
 
 //기록 저장
 router.post('/saveTrack', async (req, res) => {
-    const { username, startTime, endTime, distance, stepCount } = req.body;
+    const { username, dog_id, startTime, endTime, distance, speed, path_data } = req.body;
     console.log('Received post data:', {
         username,
+        dog_id,
         startTime,
         endTime,
         distance,
-        stepCount,
+        speed,
+        path_data,
     }); // 디버깅용 로그
 
     try {
@@ -25,13 +27,14 @@ router.post('/saveTrack', async (req, res) => {
                 .json({ message: '사용자를 찾을 수 없습니다.' });
         }
 
-        // 기록 저장
-        const [result] = await db
-            .promise()
-            .query(
-                'INSERT INTO tracking_data (user_id, start_time, end_time, distance, step_count) VALUES (?, ?, ?, ?, ?)',
-                [user[0].user_id, startTime, endTime, distance, stepCount]
-            );
+        const pathDataStr = JSON.stringify(path_data);
+
+const [result] = await db
+    .promise()
+    .query(
+        'INSERT INTO tracking_data (user_id, dog_id, start_time, end_time, distance, speed, path_data) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [user[0].user_id, dog_id, startTime, endTime, distance, speed, pathDataStr]
+    );
 
         console.log('Post created:', result); // 디버깅용 로그
 

@@ -114,7 +114,7 @@ class _WorkState extends State<Work> {
         ),
         body: Stack(
           children: [
-            WorkDST(username: widget.username),
+            WorkDST(username: widget.username, dogId: widget.dogId),
             Positioned(
               top: MediaQuery.of(context).size.height * 0.05,
               right: 16,
