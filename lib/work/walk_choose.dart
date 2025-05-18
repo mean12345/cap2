@@ -220,13 +220,6 @@ class WalkChooseState extends State<WalkChoose> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 5),
-                  Text(
-                    widget.username,
-                    style: const TextStyle(
-                      fontSize: 16,
-                    ),
-                  ),
                 ],
               ),
             ),

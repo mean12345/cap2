@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:dangq/colors.dart';
 
 class DogListPage extends StatefulWidget {
   final String username;
@@ -100,8 +101,8 @@ class _DogListPageState extends State<DogListPage> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 100,
-            height: 100,
+            width: 120, // 100에서 120으로 증가
+            height: 120, // 100에서 120으로 증가
             margin: EdgeInsets.all(8),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
@@ -128,9 +129,10 @@ class _DogListPageState extends State<DogListPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text('반려견 선택'),
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.transparent, // 배경색 투명으로 변경
         foregroundColor: Colors.black,
         elevation: 0,
         systemOverlayStyle: SystemUiOverlayStyle.dark,
@@ -152,8 +154,10 @@ class _DogListPageState extends State<DogListPage> {
                     return _buildDogProfileCircle(dogProfiles[index]);
                   },
                 ),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(16.0),
+      bottomNavigationBar: Container(
+        margin: EdgeInsets.fromLTRB(20, 0, 20, 30),
+        width: double.infinity,
+        height: 55,
         child: ElevatedButton(
           onPressed: dogProfiles.isNotEmpty
               ? () {
@@ -172,11 +176,19 @@ class _DogListPageState extends State<DogListPage> {
                   Navigator.pop(context); // 콜백 호출 후 닫기
                 }
               : null,
-          child: Text('선택하기'),
+          child: Text(
+            '선택하기',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+          ),
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.green[300],
-            foregroundColor: Colors.black,
-            padding: EdgeInsets.symmetric(vertical: 16),
+            backgroundColor: AppColors.lightgreen,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(5),
+            ),
           ),
         ),
       ),
