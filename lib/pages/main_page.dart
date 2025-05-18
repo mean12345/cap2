@@ -1,18 +1,30 @@
 import 'package:flutter/material.dart';
-import '../colors.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:dangq/setting_pages/settings_page.dart';
-import 'package:dangq/board/board_page.dart';
-import 'package:dangq/work/walk_choose.dart';
-import 'dart:async';
-import 'package:dangq/calendar/calendar.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'add_dog_page.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: 'assets/.env'); // .env 로드
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: '반려견 돌봄 앱',
+      debugShowCheckedModeBanner: false,
+      home: const MainPage(username: '둘째누나'),
+    );
+  }
+}
 
 class MainPage extends StatefulWidget {
   final String username;
-
   const MainPage({super.key, required this.username});
 
   @override
@@ -20,495 +32,409 @@ class MainPage extends StatefulWidget {
 }
 
 class _MainPageState extends State<MainPage> {
-  bool _isLoading = true;
-  int _currentPhotoIndex = 0;
-  Timer? _slideTimer;
-  double avgDistance = 0.0;
-  int avgSteps = 0;
-  double avgTimeMinutes = 0.0;
-  Timer? _statsTimer;
-  String? nickname;
-  String? profilePicture;
-
-  List<Map<String, dynamic>> dogProfiles = [];
-
-  final String baseUrl = dotenv.get('BASE_URL');
+  String temperature = '--'; // 기온
+  String dustStatus = '정보없음'; // 미세먼지 상태(임시)
+  String uvStatus = '정보없음'; // 자외선 상태(임시)
 
   @override
   void initState() {
     super.initState();
-    _loadProfileInfo();
-    _fetchDogProfilesSafely();
+    fetchWeather();
   }
 
-  void _fetchDogProfilesSafely() {
-    _fetchDogProfiles().catchError((e) {
-      // 오류가 발생하면, 목록을 빈 배열로 설정하고 UI 업데이트
-      setState(() {
-        dogProfiles = [];
-        _currentPhotoIndex = 0;
-        _isLoading = false;
-      });
+  // 클래스 맨 위쪽 상태 변수 추가
+  String location = '위치 불러오는 중...';
 
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('강아지 프로필을 불러오는 데 실패했습니다.')),
-          );
-        }
-      });
-    });
-  }
-
-  Future<void> _loadProfileInfo() async {
+  Future<void> fetchWeather() async {
     try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/users/get_nickname?username=${widget.username}'),
+      final apiKey = dotenv.env['OPENWEATHER_API_KEY'];
+      if (apiKey == null) throw Exception('API 키 누락');
+
+      // 위치 권한 체크 및 요청
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.deniedForever) {
+        throw Exception('위치 권한 거부됨');
+      }
+
+      // 현재 위치 가져오기
+      Position pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
       );
 
-      if (response.statusCode == 200 && mounted) {
-        final jsonResponse = json.decode(response.body);
-        setState(() {
-          nickname = jsonResponse['nickname'] ?? '닉네임을 불러오는 중...';
-          profilePicture = jsonResponse['profile_picture'] ?? '';
-        });
+      // --- 위치 이름(주소) 가져오기 (역지오코딩) ---
+      try {
+        List<Placemark> placemarks = await placemarkFromCoordinates(
+          pos.latitude,
+          pos.longitude,
+        );
+        if (placemarks.isNotEmpty) {
+          final place = placemarks[0];
+          // 예: "대구 달서구 신당동"
+          location =
+              '${place.administrativeArea} ${place.subAdministrativeArea} ${place.locality}';
+        } else {
+          location = '알 수 없는 위치';
+        }
+      } catch (e) {
+        location = '위치 정보 없음';
+        print('역지오코딩 실패: $e');
       }
-    } catch (e) {
-      print('Error loading profile info: $e');
-    }
-  }
 
-  Future<void> _fetchDogProfiles() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final url = '$baseUrl/dogs/get_dogs?username=${widget.username}';
-      print('요청 URL: $url'); // 요청 URL 확인 로그
+      // OpenWeatherMap API 호출 (기본 날씨 정보)
+      final url =
+          'https://api.openweathermap.org/data/2.5/weather?lat=${pos.latitude}&lon=${pos.longitude}&appid=$apiKey&units=metric&lang=kr';
 
       final response = await http.get(Uri.parse(url));
-      print('응답 상태 코드: ${response.statusCode}');
-      print('응답 본문: ${response.body}');
-
-      // 404 상태 코드: 강아지 정보가 없는 경우 (정상적인 상황)
-      if (response.statusCode == 404) {
-        setState(() {
-          dogProfiles = []; // 빈 리스트로 설정
-          _currentPhotoIndex = 0;
-          _isLoading = false;
-        });
-        return;
-      }
-
       if (response.statusCode == 200) {
-        // 응답을 직접 리스트로 파싱
-        final List<dynamic> jsonResponse = json.decode(response.body);
+        final data = json.decode(response.body);
+        final temp = data['main']['temp'];
 
-        setState(() {
-          // 각 항목을 올바른 키로 매핑
-          dogProfiles = jsonResponse
-              .map((dog) => {
-                    'dog_name': dog['name'],
-                    'image_url': dog['imageUrl'],
-                    'id': dog['id'],
-                  })
-              .toList();
+        // 미세먼지 API 호출
+        final airUrl =
+            'http://api.openweathermap.org/data/2.5/air_pollution?lat=${pos.latitude}&lon=${pos.longitude}&appid=$apiKey';
+        final airResponse = await http.get(Uri.parse(airUrl));
+        String dust = '정보없음';
+        if (airResponse.statusCode == 200) {
+          final airData = json.decode(airResponse.body);
+          final pm25 = airData['list'][0]['components']['pm2_5'];
 
-          // 프로필이 있는데 인덱스가 범위를 벗어나면 조정
-          if (dogProfiles.isNotEmpty &&
-              _currentPhotoIndex >= dogProfiles.length) {
-            _currentPhotoIndex = dogProfiles.length - 1;
+          if (pm25 <= 15) {
+            dust = '좋음';
+          } else if (pm25 <= 35) {
+            dust = '보통';
+          } else if (pm25 <= 75) {
+            dust = '나쁨';
+          } else {
+            dust = '매우나쁨';
           }
+        }
 
-          _isLoading = false;
+        // 자외선 API 호출
+        final uvUrl =
+            'http://api.openweathermap.org/data/2.5/uvi?lat=${pos.latitude}&lon=${pos.longitude}&appid=$apiKey';
+        final uvResponse = await http.get(Uri.parse(uvUrl));
+        String uv = '정보없음';
+        if (uvResponse.statusCode == 200) {
+          final uvData = json.decode(uvResponse.body);
+          final uvIndex = uvData['value'];
+
+          if (uvIndex <= 2) {
+            uv = '좋음';
+          } else if (uvIndex <= 5) {
+            uv = '보통';
+          } else if (uvIndex <= 7) {
+            uv = '높음';
+          } else {
+            uv = '매우높음';
+          }
+        }
+
+        // 상태값 업데이트
+        setState(() {
+          temperature = temp.toStringAsFixed(1);
+          dustStatus = dust;
+          uvStatus = uv;
+          // 위치 정보도 같이 업데이트
+          location = location;
         });
       } else {
-        print('실패: ${response.statusCode}');
-        setState(() {
-          _isLoading = false;
-        });
-        throw Exception('Failed to load dog profiles');
+        throw Exception('날씨 정보를 가져오지 못했습니다');
       }
     } catch (e) {
       setState(() {
-        _isLoading = false;
+        temperature = '--';
+        dustStatus = '정보없음';
+        uvStatus = '정보없음';
+        location = '위치 정보 없음';
       });
-      print('예외 발생: $e');
-      rethrow;
+      print('날씨 불러오기 실패: $e');
     }
-  }
-
-  Future<void> _deleteDogProfile(int dogId) async {
-    try {
-      final url = '$baseUrl/dogs/$dogId';
-      final response = await http.delete(Uri.parse(url));
-
-      if (response.statusCode == 200) {
-        // 삭제 성공 후 목록 다시 불러오기
-        try {
-          await _fetchDogProfiles();
-
-          // 현재 인덱스가 범위를 벗어나지 않도록 조정
-          if (dogProfiles.isNotEmpty &&
-              _currentPhotoIndex >= dogProfiles.length) {
-            setState(() {
-              _currentPhotoIndex = dogProfiles.length - 1;
-            });
-          }
-
-          // 성공 메시지 표시
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('강아지 프로필이 삭제되었습니다.')),
-            );
-          }
-        } catch (e) {
-          // 강아지가 모두 삭제되었거나 API가 404를 반환한 경우
-          setState(() {
-            dogProfiles = [];
-            _currentPhotoIndex = 0;
-          });
-
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                  content: Text('강아지 프로필이 삭제되었습니다. 더 이상 등록된 강아지가 없습니다.')),
-            );
-          }
-        }
-      } else {
-        // 오류 메시지 표시
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('삭제 실패: ${response.statusCode}')),
-          );
-        }
-      }
-    } catch (e) {
-      print('강아지 프로필 삭제 오류: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('강아지 프로필 삭제 중 오류가 발생했습니다.')),
-        );
-      }
-    }
-  }
-
-  void _nextDogProfile() {
-    if (dogProfiles.isEmpty) return;
-    setState(() {
-      _currentPhotoIndex = (_currentPhotoIndex + 1) % dogProfiles.length;
-    });
-  }
-
-  void _prevDogProfile() {
-    if (dogProfiles.isEmpty) return;
-    setState(() {
-      _currentPhotoIndex =
-          (_currentPhotoIndex - 1 + dogProfiles.length) % dogProfiles.length;
-    });
-  }
-
-  @override
-  void dispose() {
-    _slideTimer?.cancel();
-    _statsTimer?.cancel();
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: _buildAppBar(context),
-      body: _buildBody(context),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.mainYellow,
-        child: const Icon(Icons.add, color: Colors.black),
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) =>
-                  EditDogProfilePage(username: widget.username),
-            ),
-          ).then((_) => _fetchDogProfilesSafely());
-        },
-      ),
-    );
-  }
-
-  Widget _buildProfileSection() {
-    return Row(
-      children: [
-        CircleAvatar(
-          radius: 25,
-          backgroundImage: profilePicture != null && profilePicture!.isNotEmpty
-              ? NetworkImage(profilePicture!)
-              : null,
-          child: profilePicture == null || profilePicture!.isEmpty
-              ? const Icon(Icons.face, color: Colors.grey)
-              : null,
-        ),
-        const SizedBox(width: 14),
-        Text(
-          nickname ?? '닉네임을 불러오는 중...',
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
-        ),
-      ],
-    );
-  }
-
-  PreferredSizeWidget _buildAppBar(BuildContext context) {
-    return AppBar(
-      elevation: 0,
-      toolbarHeight: MediaQuery.of(context).size.height * 0.1,
-      backgroundColor: Colors.transparent,
-      flexibleSpace: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 5),
-          child: Align(
-            alignment: Alignment.bottomCenter,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildProfileSection(),
-                IconButton(
-                  icon: const Icon(Icons.settings),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            SettingsPage(username: widget.username),
+      body: SafeArea(
+        child: Stack(
+          children: [
+            // 배경 (하늘 + 언덕)
+            Positioned.fill(
+              child: Column(
+                children: [
+                  Container(height: 200, color: const Color(0xffc4dbe1)),
+                  Expanded(
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        color: Color(0xffbae2ad),
+                        borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(150),
+                        ),
                       ),
-                    ).then((_) => _loadProfileInfo());
-                  },
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBody(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 18),
-      child: Column(
-        children: [
-          const SizedBox(height: 20),
-          _buildDogProfileSection(),
-          const SizedBox(height: 20),
-          _buildIconButtonRow(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDogProfileSection() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (dogProfiles.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('등록된 강아지가 없습니다.'),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        EditDogProfilePage(username: widget.username),
-                  ),
-                ).then((_) => _fetchDogProfilesSafely());
-              },
-              child: const Text('강아지 등록하기'),
-            ),
-          ],
-        ),
-      );
-    }
-
-    // 안전하게 인덱스 범위 확인
-    if (_currentPhotoIndex >= dogProfiles.length) {
-      _currentPhotoIndex = dogProfiles.length - 1;
-    }
-
-    final currentDog = dogProfiles[_currentPhotoIndex];
-
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Stack(
-          alignment: Alignment.bottomRight,
-          children: [
-            CircleAvatar(
-              radius: 80,
-              backgroundImage: currentDog['image_url'] != null
-                  ? NetworkImage(currentDog['image_url'])
-                  : null,
-              child: currentDog['image_url'] == null
-                  ? const Icon(Icons.pets, size: 80)
-                  : null,
-            ),
-            // 삭제 버튼
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(15),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.3),
-                    spreadRadius: 1,
-                    blurRadius: 3,
-                    offset: const Offset(0, 1),
+                    ),
                   ),
                 ],
               ),
-              child: IconButton(
-                icon: const Icon(Icons.delete, color: Colors.red),
-                onPressed: () {
-                  // 삭제 확인 다이얼로그 표시
-                  showDialog(
-                    context: context,
-                    builder: (BuildContext context) {
-                      return AlertDialog(
-                        title: const Text('강아지 프로필 삭제'),
-                        content:
-                            Text('${currentDog['dog_name']} 프로필을 삭제하시겠습니까?'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(),
-                            child: const Text('취소'),
+            ),
+
+            // 콘텐츠
+            Positioned.fill(
+              child: Column(
+                children: [
+                  // 프로필 바
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 20,
+                              backgroundColor: Colors.orange,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              widget.username,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.settings, size: 28),
+                          onPressed: () {},
+                        ),
+                      ],
+                    ),
+                  ),
+                  // 위치 정보 부분 (const 빼고 변수로 변경)
+                  Container(
+                    color: const Color(0xffc4dbe1),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.location_on, color: Colors.red),
+                        const SizedBox(width: 4),
+                        Text(
+                          location, // 변수 넣기
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // 날씨 정보 (기존과 동일)
+                  Container(
+                    color: const Color(0xffc4dbe1),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    child: Row(
+                      children: [
+                        Text(
+                          '$temperature°C',
+                          style: const TextStyle(
+                            fontSize: 40,
+                            fontWeight: FontWeight.bold,
                           ),
-                          TextButton(
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                              // 강아지 ID로 삭제 함수 호출
-                              _deleteDogProfile(currentDog['id']);
-                            },
-                            child: const Text('삭제',
-                                style: TextStyle(color: Colors.red)),
+                        ),
+                        const Spacer(),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('미세먼지', style: TextStyle(fontSize: 14)),
+                            Text(
+                              dustStatus,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color:
+                                    dustStatus == '좋음'
+                                        ? Colors.blue
+                                        : Colors.red,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(width: 24),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('자외선', style: TextStyle(fontSize: 14)),
+                            Text(
+                              uvStatus,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color:
+                                    uvStatus == '좋음' ? Colors.blue : Colors.red,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  // 반려견 프로필 설정 영역
+                  Container(
+                    width: double.infinity,
+                    color: const Color(0xffc4dbe1),
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: Center(
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        margin: const EdgeInsets.symmetric(horizontal: 0),
+                        decoration: BoxDecoration(
+                          color: Color.fromRGBO(255, 255, 255, 0.3),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: const [
+                                Icon(Icons.chevron_left, size: 24),
+                                SizedBox(width: 16),
+                                CircleAvatar(
+                                  radius: 36,
+                                  backgroundColor: Colors.white,
+                                  child: Icon(
+                                    Icons.add,
+                                    size: 36,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                                SizedBox(width: 16),
+                                Icon(Icons.chevron_right, size: 24),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              '반려견 프로필을 설정해보세요',
+                              style: TextStyle(fontSize: 14),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // 기능 아이콘 3개 (이미지로 교체됨)
+                  Container(
+                    color: const Color(0xffc4dbe1),
+                    padding: const EdgeInsets.only(top: 8, bottom: 24),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _buildFeatureImageIcon('calendar.png'),
+                        _buildFeatureImageIcon('post.png'),
+                        _buildFeatureImageIcon('list.png'),
+                      ],
+                    ),
+                  ),
+                  // 하단 안내 텍스트 + 산책하기 버튼
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Image.asset(
+                          'assets/images/yellow_flower.png', // 이미지 경로
+                          width: 24,
+                          height: 24,
+                        ),
+                        const SizedBox(width: 4),
+                        const Text(
+                          '반려견의 프로필을 설정해주세요',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
                           ),
-                        ],
-                      );
-                    },
-                  );
-                },
+                        ),
+                        const SizedBox(width: 4),
+                        Image.asset(
+                          'assets/images/yellow_flower.png',
+                          width: 24,
+                          height: 24,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: () {},
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xffebfae8),
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 60,
+                        vertical: 14,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                    ),
+                    child: const Text('산책하기'),
+                  ),
+                  const SizedBox(height: 24),
+                ],
               ),
             ),
           ],
         ),
-        const SizedBox(height: 10),
-        Text(
-          currentDog['dog_name'],
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 20),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: _prevDogProfile,
-            ),
-            IconButton(
-              icon: const Icon(Icons.arrow_forward),
-              onPressed: _nextDogProfile,
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildIconButtonRow() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
-      children: [
-        _buildIconButton("캘린더", Icons.calendar_month, AppColors.mainYellow),
-        _buildIconButton("게시판", Icons.assignment, AppColors.mainPink),
-        _buildIconButton("산책", Icons.pets, AppColors.olivegreen),
-      ],
-    );
-  }
-
-  Widget _buildIconButton(String label, IconData icon, Color color) {
-    return SizedBox(
-      width: 70,
-      child: Column(
-        children: [
-          InkWell(
-            onTap: () => _handleIconButtonTap(label),
-            child: Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                  color: color, borderRadius: BorderRadius.circular(15)),
-              child: Icon(icon, color: Colors.black, size: 32),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(label, style: const TextStyle(fontSize: 14))
-        ],
       ),
     );
   }
 
-  void _handleIconButtonTap(String label) {
-    switch (label) {
-      case "캘린더":
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => CalendarPage(username: widget.username),
-          ),
-        );
-        break;
-      case "게시판":
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => BoardPage(username: widget.username),
-          ),
-        );
-        break;
-      case "산책":
-        // 현재 선택된 강아지가 있는지 확인
-        if (dogProfiles.isEmpty) {
-          // 등록된 강아지가 없는 경우 알림 표시
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('등록된 강아지가 없습니다. 먼저 강아지를 등록해주세요.')),
-          );
-          return;
-        }
+  Widget _buildFeatureImageIcon(String assetName) {
+    // post 아이콘은 오른쪽으로 밀기 위해 padding 조정
+    // list 아이콘은 패딩을 작게 해서 이미지가 더 크게 보이도록 조정
+    EdgeInsets padding;
+    double imageSize;
 
-        // 현재 선택된 강아지 정보 가져오기
-        final currentDog = dogProfiles[_currentPhotoIndex];
-        final dogId = currentDog['id'];
-        final dogName = currentDog['dog_name'];
-
-        print('선택한 강아지: $dogName (ID: $dogId)로 산책하기');
-
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => WalkChoose(
-              username: widget.username,
-              dogId: dogId,
-              dogName: dogName,
-            ),
-          ),
-        );
-        break;
+    if (assetName == 'post.png') {
+      padding = const EdgeInsets.fromLTRB(8, 8, 2, 8); // 오른쪽 padding 줄임
+      imageSize = 40;
+    } else if (assetName == 'list.png') {
+      padding = const EdgeInsets.all(4); // 패딩 작게
+      imageSize = 60; // 이미지 크기 키움
+    } else {
+      padding = const EdgeInsets.all(8);
+      imageSize = 40;
     }
+
+    return Container(
+      width: 64,
+      height: 64,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
+        ],
+      ),
+      child: Padding(
+        padding: padding,
+        child: Image.asset(
+          'assets/images/$assetName',
+          fit: BoxFit.contain,
+          width: imageSize,
+          height: imageSize,
+        ),
+      ),
+    );
   }
 }
