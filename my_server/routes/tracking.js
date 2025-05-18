@@ -2,14 +2,17 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
 
+//기록 저장
 router.post('/saveTrack', async (req, res) => {
-    const { username, startTime, endTime, distance, stepCount } = req.body;
+    const { username, dog_id, startTime, endTime, distance, speed, path_data } = req.body;
     console.log('Received post data:', {
         username,
+        dog_id,
         startTime,
         endTime,
         distance,
-        stepCount,
+        speed,
+        path_data,
     }); // 디버깅용 로그
 
     try {
@@ -24,13 +27,14 @@ router.post('/saveTrack', async (req, res) => {
                 .json({ message: '사용자를 찾을 수 없습니다.' });
         }
 
-        // 기록 저장
-        const [result] = await db
-            .promise()
-            .query(
-                'INSERT INTO tracking_data (user_id, start_time, end_time, distance, step_count) VALUES (?, ?, ?, ?, ?)',
-                [user[0].user_id, startTime, endTime, distance, stepCount]
-            );
+        const pathDataStr = JSON.stringify(path_data);
+
+const [result] = await db
+    .promise()
+    .query(
+        'INSERT INTO tracking_data (user_id, dog_id, start_time, end_time, distance, speed, path_data) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [user[0].user_id, dog_id, startTime, endTime, distance, speed, pathDataStr]
+    );
 
         console.log('Post created:', result); // 디버깅용 로그
 
@@ -44,6 +48,7 @@ router.post('/saveTrack', async (req, res) => {
     }
 });
 
+//기록 조회
 router.get('/:username', async (req, res) => {
     const { username } = req.params;
 
@@ -107,7 +112,7 @@ router.get('/:username', async (req, res) => {
     }
 });
 
-// 2. 산책 기록 삭제
+//산책 기록 삭제
 router.delete('/:id', (req, res) => {
     const { id } = req.params;
     db.query(
@@ -120,13 +125,14 @@ router.delete('/:id', (req, res) => {
     );
 });
 
+//기록 평균값 조회
 router.get('/avg/:username', async (req, res) => {
     const { username } = req.params;
 
     try {
         console.log(`Received request for username: ${username}`);
 
-        // 1. username -> user_id 가져오기
+        //username -> user_id 가져오기
         const [userInfo] = await db
             .promise()
             .query(`SELECT user_id FROM users WHERE username = ?`, [username]);
@@ -139,7 +145,7 @@ router.get('/avg/:username', async (req, res) => {
 
         const userId = userInfo[0].user_id;
 
-        // 2. user_id가 속한 그룹의 leader_id 찾기
+        //user_id가 속한 그룹의 leader_id 찾기
         const [relationship] = await db
             .promise()
             .query(
@@ -155,7 +161,7 @@ router.get('/avg/:username', async (req, res) => {
 
         const leaderId = relationship[0].leader_id;
 
-        // 3. leader_id를 기준으로 그 그룹의 모든 member_id 가져오기
+        //leader_id를 기준으로 그 그룹의 모든 member_id 가져오기
         const [groupMembers] = await db
             .promise()
             .query(`SELECT member_id FROM relationships WHERE leader_id = ?`, [
@@ -164,12 +170,12 @@ router.get('/avg/:username', async (req, res) => {
 
         const memberIds = groupMembers.map((row) => row.member_id);
 
-        // 4. groupMembers가 비어있을 수 있으니, leader 자신도 포함시키자.
+        //groupMembers가 비어있을 수 있으니, leader 포함.
         memberIds.push(leaderId);
 
         console.log('Group Member IDs:', memberIds);
 
-        // 5. 그룹의 모든 멤버들의 활동 데이터 평균값 계산
+        //그룹의 모든 멤버들의 활동 데이터 평균값 계산
         const [trackingData] = await db.promise().query(
             `SELECT 
                 AVG(distance) AS avg_distance,

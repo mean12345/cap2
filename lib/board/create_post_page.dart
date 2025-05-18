@@ -4,9 +4,9 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb; //제거 가능
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:video_player/video_player.dart'; // video_player 패키지 추가
+import 'package:video_player/video_player.dart'; // video_player 패키지 제거거
 
 class CreatePostPage extends StatefulWidget {
   final String username;

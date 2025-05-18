@@ -1,18 +1,17 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
-const { upload, uploadVideo } = require('../config/multerConfig');
+const { upload } = require('../config/multerConfig');
 const path = require('path');
 const fs = require('fs');
 
 // 게시글 작성
 router.post('/', async (req, res) => {
-    const { username, content, image_url, video_url } = req.body;
+    const { username, content, image_url } = req.body;
     console.log('Received post data:', {
         username,
         content,
         image_url,
-        video_url,
     }); // 디버깅용 로그
 
     try {
@@ -31,8 +30,8 @@ router.post('/', async (req, res) => {
         const [result] = await db
             .promise()
             .query(
-                'INSERT INTO posts (user_id, content, image_url, video_url) VALUES (?, ?, ?, ?)',
-                [user[0].user_id, content, image_url || null, video_url || null]
+                'INSERT INTO posts (user_id, content, image_url) VALUES (?, ?, ?)',
+                [user[0].user_id, content, image_url || null]
             );
 
         console.log('Post created:', result); // 디버깅용 로그
@@ -78,7 +77,6 @@ router.get('/:username', async (req, res) => {
               p.post_id, 
               p.content, 
               p.image_url, 
-              p.video_url,    -- 비디오 URL 추가
               p.created_at, 
               u.username
              FROM posts p
@@ -96,8 +94,8 @@ router.get('/:username', async (req, res) => {
         const formattedPosts = posts.map((post) => ({
             ...post,
             created_at: new Date(post.created_at).toLocaleString(),
-            image_url: post.image_url ? post.image_url.trim() : null, // URL 공백 제거
-            video_url: post.video_url ? post.video_url.trim() : null, // 비디오 URL 공백 제거
+            image_url: post.image_url ? post.image_url.trim() : null,
+            video_url: post.video_url ? post.video_url.trim() : null,
         }));
 
         res.status(200).json(formattedPosts);
@@ -120,16 +118,6 @@ router.post('/upload', upload.single('image'), (req, res) => {
     res.status(200).json({ url: imageUrl });
 });
 
-// 비디오 업로드 (게시판용)
-router.post('/uploadVideo', uploadVideo.single('video'), (req, res) => {
-    if (!req.file) {
-        return res.status(400).json({ message: '비디오 파일이 없습니다.' });
-    }
-
-    const videoUrl = `${process.env.BASE_URL}/video_share/${req.file.filename}`;
-    console.log('Generated video URL:', videoUrl);
-    res.status(200).json({ url: videoUrl });
-});
 
 // 게시글 삭제
 router.delete('/:postId', async (req, res) => {
@@ -140,7 +128,7 @@ router.delete('/:postId', async (req, res) => {
         await db.promise().query('START TRANSACTION');
 
         const [post] = await db.promise().query(
-            `SELECT p.*, u.username, p.image_url, p.video_url 
+            `SELECT p.*, u.username, p.image_url
              FROM posts p 
              JOIN users u ON p.user_id = u.user_id 
              WHERE p.post_id = ?`,
@@ -173,20 +161,6 @@ router.delete('/:postId', async (req, res) => {
             }
         }
 
-        // 비디오 파일 삭제
-        if (post[0].video_url) {
-            const videoPath = post[0].video_url.split('/video_share/')[1];
-            const fullVideoPath = path.join(
-                __dirname,
-                '..',
-                'video_share',
-                videoPath
-            );
-            if (fs.existsSync(fullVideoPath)) {
-                fs.unlinkSync(fullVideoPath);
-            }
-        }
-
         // 댓글과 게시글 삭제
         await db
             .promise()
@@ -211,12 +185,10 @@ router.get('/:username', async (req, res) => {
     try {
         const [userInfo] = await db.promise().query(
             `SELECT u.user_id, u.role, 
-                CASE 
-                    WHEN u.role = 'leader' THEN u.user_id
-                    ELSE (SELECT leader_id FROM relationships WHERE member_id = u.user_id)
-                END as leader_id
-               FROM users u
-               WHERE u.username = ?`,
+                COALESCE(r.leader_id, u.user_id) AS leader_id
+                FROM users u
+                LEFT JOIN relationships r ON r.member_id = u.user_id
+                WHERE u.username = ?`,
             [username]
         );
 
@@ -251,7 +223,7 @@ router.get('/:username', async (req, res) => {
             ...post,
             created_at: new Date(post.created_at).toLocaleString(),
             image_url: post.image_url ? post.image_url.trim() : null,
-            video_url: post.video_url ? post.video_url.trim() : null, // 비디오 URL 처리
+            video_url: post.video_url ? post.video_url.trim() : null,
         }));
 
         res.status(200).json(formattedPosts);

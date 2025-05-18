@@ -1,66 +1,125 @@
-import 'package:dangq/colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:dangq/work/walk_choose.dart'; // Walk_choose import 추가
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-//산책 시작 전 반려견 프로필 선택 페이지
-
-class Dog_list extends StatefulWidget {
+class DogListPage extends StatefulWidget {
   final String username;
+  final void Function(int, String, String) onDogSelected;
 
-  const Dog_list({super.key, required this.username});
+  const DogListPage({
+    Key? key,
+    required this.username,
+    required this.onDogSelected,
+  }) : super(key: key);
+
   @override
-  State<Dog_list> createState() => dog_list();
+  State<DogListPage> createState() => _DogListPageState();
 }
 
-class dog_list extends State<Dog_list> {
-  // 임시 프로필 데이터 *****지우고 프로필 API 넣기 없애면 오류나서 나둠
-  final List<String> profiles = ['1'];
-
-  String? selectedProfile;
+class _DogListPageState extends State<DogListPage> {
+  List<Map<String, dynamic>> dogProfiles = [];
+  bool _isLoading = false;
+  int _currentPhotoIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    selectedProfile = profiles[0];
+    _fetchDogProfiles();
   }
 
-  //프로필 갯수만큼 프로필 원형 만들어주는 함수
-  Widget buildProfileCircle(String profileName) {
-    bool isSelected = selectedProfile == profileName;
+  Future<void> _fetchDogProfiles() async {
+    setState(() {
+      _isLoading = true;
+    });
+    final String baseUrl = dotenv.get('BASE_URL');
+
+    try {
+      final url = '$baseUrl/dogs/get_dogs?username=${widget.username}';
+      print('요청 URL: $url');
+
+      final response = await http.get(Uri.parse(url));
+      print('응답 상태 코드: ${response.statusCode}');
+      print('응답 본문: ${response.body}');
+
+      if (response.statusCode == 404) {
+        setState(() {
+          dogProfiles = [];
+          _currentPhotoIndex = 0;
+          _isLoading = false;
+        });
+        return;
+      }
+
+      if (response.statusCode == 200) {
+        final List<dynamic> jsonResponse = json.decode(response.body);
+
+        setState(() {
+          dogProfiles = jsonResponse
+              .map<Map<String, dynamic>>((dog) => {
+                    'dog_name': dog['name'],
+                    'image_url': dog['imageUrl'],
+                    'id': dog['id'],
+                  })
+              .toList();
+
+          if (dogProfiles.isNotEmpty &&
+              _currentPhotoIndex >= dogProfiles.length) {
+            _currentPhotoIndex = dogProfiles.length - 1;
+          }
+
+          _isLoading = false;
+        });
+      } else {
+        print('실패: ${response.statusCode}');
+        setState(() {
+          _isLoading = false;
+        });
+        throw Exception('Failed to load dog profiles');
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      print('예외 발생: $e');
+      rethrow;
+    }
+  }
+
+  Widget _buildDogProfileCircle(Map<String, dynamic> dog) {
+    final isSelected = dogProfiles.indexOf(dog) == _currentPhotoIndex;
+
     return GestureDetector(
       onTap: () {
         setState(() {
-          selectedProfile = isSelected ? null : profileName;
+          _currentPhotoIndex = dogProfiles.indexOf(dog);
         });
       },
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 120,
-            height: 120,
-            margin: EdgeInsets.all(5),
+            width: 100,
+            height: 100,
+            margin: EdgeInsets.all(8),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.grey[300],
-              //누르면 초록색 태두리 생성
-              border: isSelected
-                  ? Border.all(
-                      color: AppColors.lightgreen,
-                      width: 3,
+              border:
+                  isSelected ? Border.all(color: Colors.green, width: 3) : null,
+              image: dog['image_url'] != null
+                  ? DecorationImage(
+                      image: NetworkImage(dog['image_url']),
+                      fit: BoxFit.cover,
                     )
                   : null,
+              color: dog['image_url'] == null ? Colors.grey[300] : null,
             ),
           ),
-          SizedBox(height: 5),
           Text(
-            profileName,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
+            dog['dog_name'] ?? '',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          )
         ],
       ),
     );
@@ -68,76 +127,57 @@ class dog_list extends State<Dog_list> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      home: Scaffold(
-        appBar: AppBar(
-          toolbarHeight: MediaQuery.of(context).size.height * 0.05,
-          leading: IconButton(
-            icon: Icon(
-              Icons.arrow_back,
-              color: Colors.black,
-              size: 35,
-            ),
-            onPressed: () {
-              Navigator.pop(context);
-            },
-          ),
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          systemOverlayStyle: SystemUiOverlayStyle.dark,
-        ),
-        body: Stack(
-          children: [
-            // 프로필 목록데로 프로필 원형 생성
-            GridView.builder(
-              padding: EdgeInsets.fromLTRB(20, 80, 20, 100),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: 10,
-                crossAxisSpacing: 10,
-                childAspectRatio: 0.8,
-              ),
-              itemCount: profiles.length,
-              itemBuilder: (context, index) {
-                return buildProfileCircle(profiles[index]);
-              },
-            ),
-            // 기존 하단 버튼
-            Positioned(
-              bottom: 30,
-              left: 20,
-              right: 20,
-              child: Container(
-                width: double.infinity,
-                height: 55,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            Walk_choose(username: widget.username),
-                      ),
-                    );
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('반려견 선택'),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 0,
+        systemOverlayStyle: SystemUiOverlayStyle.dark,
+      ),
+      body: _isLoading
+          ? Center(child: CircularProgressIndicator())
+          : dogProfiles.isEmpty
+              ? Center(child: Text('등록된 반려견이 없습니다.'))
+              : GridView.builder(
+                  padding: EdgeInsets.all(20),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 15,
+                    crossAxisSpacing: 15,
+                    childAspectRatio: 0.8,
+                  ),
+                  itemCount: dogProfiles.length,
+                  itemBuilder: (context, index) {
+                    return _buildDogProfileCircle(dogProfiles[index]);
                   },
-                  child: Text(
-                    '선택하기',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.lightgreen,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                  ),
                 ),
-              ),
-            ),
-          ],
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: ElevatedButton(
+          onPressed: dogProfiles.isNotEmpty
+              ? () {
+                  final selectedDog = dogProfiles[_currentPhotoIndex];
+                  final dogId = selectedDog['id'];
+                  final dogName = selectedDog['dog_name'];
+
+                  print('선택한 반려견: $dogName (ID: $dogId)');
+
+                  widget.onDogSelected(
+                    dogId,
+                    dogName,
+                    selectedDog['image_url'],
+                  );
+
+                  Navigator.pop(context); // 콜백 호출 후 닫기
+                }
+              : null,
+          child: Text('선택하기'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.green[300],
+            foregroundColor: Colors.black,
+            padding: EdgeInsets.symmetric(vertical: 16),
+          ),
         ),
       ),
     );

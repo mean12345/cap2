@@ -169,7 +169,7 @@ router.delete('/:username', async (req, res) => {
     }
 });
 
-// 📌 프로필 사진 업로드 API
+//프로필 사진 업로드
 router.post(
     '/upload_profile_picture',
     profilestorage.single('profile_picture'),
@@ -186,9 +186,36 @@ router.post(
         res.status(200).json({ url: profileUrl });
     }
 );
+// 리더 아이디 찾기
+router.get('/get_leader_id', (req, res) => {
+    const { username } = req.query;
 
-// 프로필 사진 업로드 및 정보 업데이트 통합 API
-// 프로필 사진 업로드 및 정보 업데이트 통합 API
+    if (!username) {
+        return res.status(400).json({ error: 'Username is required' });
+    }
+
+    const query = `
+        SELECT r.leader_id
+        FROM relationships r
+        JOIN users u ON r.member_id = u.user_id
+        WHERE u.username = ?`;
+    
+    db.query(query, [username], (err, results) => {
+        if (err) {
+            console.error('Error fetching leader id:', err);
+            return res.status(500).json({ error: 'Database error' });
+        }
+
+        if (results.length === 0) {
+            return res.status(404).json({ error: 'User is not a member or no leader found' });
+        }
+
+        const leaderId = results[0].leader_id;
+        res.json({ leader_id: leaderId });
+    });
+});
+
+// 프로필 사진 업로드 및 정보 업데이트 통합
 router.post(
     '/update_profile',
     profilestorage.single('profile_picture'),
@@ -264,7 +291,7 @@ router.post(
         }
     }
 );
-
+//프로필 재설정
 router.post('/reset_profile_picture', (req, res) => {
     const { username } = req.body;
 
@@ -315,6 +342,7 @@ router.post('/reset_profile_picture', (req, res) => {
         });
     });
 });
+
 // username에 해당하는 nickname과 profile_picture 조회 API
 router.get('/get_nickname', (req, res) => {
     const { username } = req.query;

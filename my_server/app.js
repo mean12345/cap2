@@ -8,12 +8,12 @@ const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const markerRoutes = require('./routes/markers');
 const trackingRoutes = require('./routes/tracking');
-const photoRoutes = require('./routes/photos');
 const postRoutes = require('./routes/posts');
 const connectionRoutes = require('./routes/connections');
 const commentsRouter = require('./routes/comments');
 const relationshipsRouter = require('./routes/relationships');
 const calendarRoutes = require('./routes/calendar');
+const dogRoutes = require('./routes/dog');
 
 const app = express();
 
@@ -25,18 +25,17 @@ app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
 app.use('/markers', markerRoutes);
 app.use('/tracking', trackingRoutes);
-app.use('/photos', photoRoutes);
 app.use('/posts', postRoutes);
 app.use('/', connectionRoutes);
 app.use('/comments', commentsRouter);
 app.use('/relationships', relationshipsRouter);
 app.use('/calendar', calendarRoutes);
+app.use('/dogs', dogRoutes);
 
 // 정적 파일 제공
 app.use('/uploads', express.static('uploads'));
 app.use('/profile_uploads', express.static('profile_uploads'));
-app.use('/photo_share', express.static('photo_share'));
-app.use('/video_share', express.static('video_share'));
+app.use('/dogs_profile', express.static('dogs_profile'));
 
 // 만료된 초대 코드 자동 삭제 스케줄러
 const cleanupExpiredCodes = async () => {

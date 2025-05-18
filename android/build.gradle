@@ -2,8 +2,12 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        maven {
+            url 'https://repository.map.naver.com/archive/maven'
+        }
     }
 }
+
 
 rootProject.buildDir = "../build"
 subprojects {

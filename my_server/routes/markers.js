@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
 
+//마커 저장
 router.post('/', async (req, res) => {
     const { username, latitude, longitude, marker_type, marker_name } =
         req.body;
@@ -36,7 +37,7 @@ router.post('/', async (req, res) => {
         console.log('Post created:', result); // 디버깅용 로그
 
         res.status(201).json({
-            message: '마커가가 저장되었습니다.',
+            message: '마커가 저장되었습니다.',
             post_id: result.insertId,
         });
     } catch (error) {
@@ -45,6 +46,7 @@ router.post('/', async (req, res) => {
     }
 });
 
+//마커 조회
 router.get('/:username', async (req, res) => {
     const { username } = req.params;
 
@@ -96,6 +98,7 @@ router.get('/:username', async (req, res) => {
     }
 });
 
+//마커 삭제
 router.delete('/:marker_name', async (req, res) => {
     const { marker_name } = req.params;
     console.log('Received delete request for marker_name:', marker_name); // 디버깅용 로그
@@ -127,6 +130,7 @@ router.delete('/:marker_name', async (req, res) => {
     }
 });
 
+//마커 이름 조회
 router.post('/getMarkerName', (req, res) => {
     const { latitude, longitude } = req.body;
 

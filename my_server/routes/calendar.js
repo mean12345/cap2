@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
 
-// 📅 특정 사용자의 일정 조회 (리더 및 멤버 일정 포함)
+//특정 사용자의 일정 조회 (리더 및 멤버 일정 포함)
 router.get('/:username/events', async (req, res) => {
     const { username } = req.params;
     const { start_date, end_date } = req.query; // 시작 날짜와 종료 날짜 필터링 (선택사항)
@@ -11,12 +11,10 @@ router.get('/:username/events', async (req, res) => {
         // 사용자의 role과 관계 정보 조회
         const [userInfo] = await db.promise().query(
             `SELECT u.user_id, u.role, 
-            CASE 
-                WHEN u.role = 'leader' THEN u.user_id
-                ELSE (SELECT leader_id FROM relationships WHERE member_id = u.user_id)
-            END as leader_id
+                 COALESCE(r.leader_id, u.user_id) AS leader_id
             FROM users u
-            WHERE u.username = ?`,
+              LEFT JOIN relationships r ON r.member_id = u.user_id
+             WHERE u.username = ?`,
             [username]
         );
 
@@ -28,7 +26,7 @@ router.get('/:username/events', async (req, res) => {
 
         const leaderId = userInfo[0].leader_id;
 
-        // 📅 일정 조회 쿼리 (리더와 연결된 모든 멤버 포함)
+        // 일정 조회 쿼리 (리더와 연결된 모든 멤버 포함)
         let query = `
         SELECT DISTINCT 
         e.event_id, 
@@ -126,7 +124,7 @@ router.post('/', async (req, res) => {
     }
 });
 
-// 📅 일정 수정
+// 일정 수정
 router.put('/edit/:event_id', async (req, res) => {
     const { event_id } = req.params;
     const {
@@ -183,7 +181,7 @@ router.put('/edit/:event_id', async (req, res) => {
     }
 });
 
-// 예시: 다른 경로로 감싸져 있을 수 있음
+// 일정 삭제
 router.delete('/:username/delete/:event_id', async (req, res) => {
     const { event_id } = req.params;
     console.log('Received DELETE request for event ID:', event_id); // 디버깅: 이벤트 ID 확인
