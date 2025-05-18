@@ -21,7 +21,8 @@ import 'package:dangq/work/work_self/draggable_dst/draggable_sheet_widgets.dart'
 
 class WorkDST extends StatefulWidget {
   final String username;
-  const WorkDST({super.key, required this.username});
+  final int dogId;
+  const WorkDST({super.key, required this.username, required this.dogId});
 
   @override
   State<WorkDST> createState() => _WorkDSTState();
@@ -113,7 +114,7 @@ class _WorkDSTState extends State<WorkDST> {
     _locationTracker?.stopRecording();
     _speedTracker.stopTracking();
     _timerController.resetTimer();
-    _locationTracker?.saveTrackData(_speedTracker.currentSpeed);
+    _locationTracker?.saveTrackData();
   }
 
   @override
@@ -135,6 +136,7 @@ class _WorkDSTState extends State<WorkDST> {
             _locationTracker = LocationTracker(
               mapController: controller,
               username: widget.username,
+              dogId: widget.dogId,
               onDistanceUpdate: (distance) {
                 setState(() {});
                 if (_locationTracker?.currentPosition != null) {

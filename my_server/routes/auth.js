@@ -7,6 +7,7 @@ const {
     sendEmail,
 } = require('../utils/emailService');
 
+//이메일 인증 코드 발송
 router.post('/send-verification-email', (req, res) => {
     const { email } = req.body;
     console.log('Received request to send verification email to:', email);
@@ -87,11 +88,12 @@ router.post('/send-verification-email', (req, res) => {
     });
 });
 
+//이메일 인증 코드 검증
 router.post('/verify-code', (req, res) => {
     const { email, code } = req.body;
     console.log('Verifying code for email:', email);
 
-    // 가장 최근의 인증 코드 조회
+    // 가장 최근의 인증 코드 조회 <-- 변경 필요
     db.query(
         'SELECT * FROM email_verification WHERE email = ? AND is_verified = FALSE ORDER BY created_at DESC LIMIT 1',
         [email],
@@ -156,6 +158,7 @@ router.post('/verify-code', (req, res) => {
     );
 });
 
+//비밀번호 재설정
 router.post('/reset-password', async (req, res) => {
     const { username, password } = req.body;
 
@@ -190,6 +193,7 @@ router.post('/reset-password', async (req, res) => {
     });
 });
 
+//아이디 찾기
 router.post('/find-id', (req, res) => {
     const { email } = req.body;
     console.log('Finding ID for email:', email);

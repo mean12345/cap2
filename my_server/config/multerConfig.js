@@ -18,27 +18,18 @@ const profilestorage = multer.diskStorage({
     },
 });
 
-const photoStorage = multer.diskStorage({
+const dogsstorage = multer.diskStorage({
     destination: function (req, file, cb) {
-        cb(null, 'photo_share/');
+        cb(null, 'dogs_profile/');
     },
     filename: function (req, file, cb) {
         cb(null, Date.now() + '-' + file.originalname);
     },
 });
 
-const videoStorage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, 'video_share/');
-    },
-    filename: function (req, file, cb) {
-        cb(null, Date.now() + '-' + file.originalname);
-    },
-});
 
 module.exports = {
     upload: multer({ storage: storage }),
     profilestorage: multer({ storage: profilestorage }),
-    photoUpload: multer({ storage: photoStorage }),
-    uploadVideo: multer({ storage: videoStorage }),
+    dogsstorage: multer({ storage: dogsstorage }),
 };

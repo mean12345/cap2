@@ -1,4 +1,4 @@
-# flutter_dangq
+# dangq
 
 A new Flutter project.
 
