@@ -5,10 +5,6 @@ import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
-import 'package:fl_chart/fl_chart.dart';
-
-
-
 
 class WorkList extends StatefulWidget {
   final String username;
@@ -215,6 +211,7 @@ class _WorkListState extends State<WorkList> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
+        scrolledUnderElevation: 0,
         toolbarHeight: MediaQuery.of(context).size.height * 0.05,
         leading: GestureDetector(
           onTap: () => Navigator.pop(context),
@@ -233,7 +230,6 @@ class _WorkListState extends State<WorkList> {
               children: [
                 _buildCalendar(),
                 _buildMonthlyTotalSection(),
-                _buildPathViewButton(_selectedDay),
                 Expanded(
                   child: _buildSelectedDayWorkouts(),
                 ),
@@ -353,62 +349,74 @@ class _WorkListState extends State<WorkList> {
           ),
         ],
       ),
-      child: TableCalendar(
-        firstDay: DateTime.utc(2020, 1, 1),
-        lastDay: DateTime.utc(2030, 12, 31),
-        focusedDay: _focusedDay,
-        calendarFormat: _calendarFormat,
-        eventLoader: (day) {
-          final dateOnly = DateTime(day.year, day.month, day.day);
-          return workoutsByDate[dateOnly] ?? [];
-        },
-        selectedDayPredicate: (day) {
-          return isSameDay(_selectedDay, day);
-        },
-        onDaySelected: (selectedDay, focusedDay) {
-          if (!isSameDay(_selectedDay, selectedDay)) {
-            setState(() {
-              _selectedDay = selectedDay;
-              _focusedDay = focusedDay;
-            });
-          }
-        },
-        onFormatChanged: (format) {
-          if (_calendarFormat != format) {
-            setState(() {
-              _calendarFormat = format;
-            });
-          }
-        },
-        onPageChanged: (focusedDay) {
-          setState(() {
-            _focusedDay = focusedDay;
-            _calculateMonthlyTotals();
-          });
-        },
-        calendarStyle: CalendarStyle(
-          markerDecoration: BoxDecoration(
-            color: AppColors.green,
-            shape: BoxShape.circle,
+      child: Column(
+        children: [
+          SizedBox(height: 16),
+          CircleAvatar(
+            radius: 24,
+            backgroundImage: AssetImage('assets/images/profile.png'),
+            backgroundColor: Colors.grey[300],
           ),
-          todayDecoration: BoxDecoration(
-            color: AppColors.green.withOpacity(0.1),
-            shape: BoxShape.circle,
+          SizedBox(height: 8),
+          TableCalendar(
+            locale: 'ko_KR',
+            firstDay: DateTime.utc(2020, 1, 1),
+            lastDay: DateTime.utc(2030, 12, 31),
+            focusedDay: _focusedDay,
+            calendarFormat: _calendarFormat,
+            eventLoader: (day) {
+              final dateOnly = DateTime(day.year, day.month, day.day);
+              return workoutsByDate[dateOnly] ?? [];
+            },
+            selectedDayPredicate: (day) {
+              return isSameDay(_selectedDay, day);
+            },
+            onDaySelected: (selectedDay, focusedDay) {
+              if (!isSameDay(_selectedDay, selectedDay)) {
+                setState(() {
+                  _selectedDay = selectedDay;
+                  _focusedDay = focusedDay;
+                });
+              }
+            },
+            onFormatChanged: (format) {
+              if (_calendarFormat != format) {
+                setState(() {
+                  _calendarFormat = format;
+                });
+              }
+            },
+            onPageChanged: (focusedDay) {
+              setState(() {
+                _focusedDay = focusedDay;
+                _calculateMonthlyTotals();
+              });
+            },
+            calendarStyle: CalendarStyle(
+              markerDecoration: BoxDecoration(
+                color: AppColors.green,
+                shape: BoxShape.circle,
+              ),
+              todayDecoration: BoxDecoration(
+                color: AppColors.green.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              selectedDecoration: BoxDecoration(
+                border: Border.all(color: AppColors.green, width: 2),
+                shape: BoxShape.circle,
+              ),
+              selectedTextStyle: TextStyle(
+                color: Colors.black87,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            headerStyle: HeaderStyle(
+              formatButtonVisible: false,
+              titleCentered: true,
+              formatButtonShowsNext: false,
+            ),
           ),
-          selectedDecoration: BoxDecoration(
-            border: Border.all(color: AppColors.green, width: 2),
-            shape: BoxShape.circle,
-          ),
-          selectedTextStyle: TextStyle(
-            color: Colors.black87,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        headerStyle: HeaderStyle(
-          formatButtonVisible: true,
-          titleCentered: true,
-          formatButtonShowsNext: false,
-        ),
+        ],
       ),
     );
   }
@@ -507,66 +515,6 @@ class _WorkListState extends State<WorkList> {
                 ),
               ],
             ),
-          ),
-        );
-      },
-    );
-  }
-
- Widget _buildPathViewButton(DateTime date) {
-  final dayNumber = _selectedDay.day;
-  return Padding(
-    padding: const EdgeInsets.symmetric(vertical: 8.0),
-    child: SizedBox(
-      width: 350,
-      height: 30, 
-      child: ElevatedButton(
-        onPressed: () {
-          _showPathDialog(_selectedDay);
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.white, // 배경색
-          foregroundColor: Colors.black, // 글씨색
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-          ),
-        ),
-        child: Text(
-          '$dayNumber일의 경로 보기',
-          style: TextStyle(
-            fontSize: 22, 
-            fontWeight: FontWeight.w300,
-          ),
-        ),
-      ),
-    ),
-  );
-}
-
-
-  // 다이얼로그 보여주는 함수
-  void _showPathDialog(DateTime date) {
-    final dateStr = DateFormat('yyyy-MM-dd').format(date);
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text('산책 경로'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('날짜: $dateStr'),
-              SizedBox(height: 10),
-              Icon(Icons.arrow_forward),
-              SizedBox(height: 10),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop(); // 다이얼로그 닫기
-                  // 필요시, 캘린더로 돌아가는 로직 넣기
-                },
-                child: Text('캘린더로 돌아가기'),
-              ),
-            ],
           ),
         );
       },
@@ -700,121 +648,13 @@ class WorkListItem extends StatelessWidget {
   }
 }
 
-void main() {
-  runApp(MaterialApp(
-    home: Scaffold(
-      appBar: AppBar(title: Text('산책 기록 그래프프')),
-      body: Center(
-        child: SizedBox(
-          width: 350,
-          height: 300,
-          child: LineChart(
-            LineChartData(
-              titlesData: FlTitlesData(
-                bottomTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    getTitlesWidget: (value, meta) {
-                      switch (value.toInt()) {
-                        case 0:
-                          return Text('1주차');
-                        case 1:
-                          return Text('2주차');
-                        case 2:
-                          return Text('3주차');
-                        case 3:
-                          return Text('4주차');
-                        case 4:
-                          return Text('5주차');
-                        default:
-                          return Text('');
-                      }
-                    },
-                  ),
-                ),
-              ),
-              lineBarsData: [
-                LineChartBarData(
-                  spots: [
-                    FlSpot(0, 3),
-                    FlSpot(1, 2),
-                    FlSpot(2, 5),
-                    FlSpot(3, 3.5),
-                    FlSpot(4, 4),
-                  ],
-                  isCurved: true,
-                  color: Colors.blue,
-                  barWidth: 3,
-                  dotData: FlDotData(show: true),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    ),
-  ));
-}
-class LineChartSample extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text('선그래프 예시')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: LineChart(
-          LineChartData(
-            titlesData: FlTitlesData(
-              bottomTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  getTitlesWidget: (value, meta) {
-                    switch (value.toInt()) {
-                      case 0:
-                        return Text('1주차');
-                      case 1:
-                        return Text('2주차');
-                      case 2:
-                        return Text('3주차');
-                      case 3:
-                        return Text('4주차');
-                      case 4:
-                        return Text('5주차');
-                      default:
-                        return Text('');
-                    }
-                  },
-                ),
-              ),
-            ),
-            lineBarsData: [
-              LineChartBarData(
-                spots: [
-                  FlSpot(0, 3),
-                  FlSpot(1, 2),
-                  FlSpot(2, 5),
-                  FlSpot(3, 3.5),
-                  FlSpot(4, 4),
-                ],
-                isCurved: true,
-                color: Colors.blue,
-                barWidth: 3,
-                dotData: FlDotData(show: true),
-              ),
-              // 다른 선 그래프 데이터도 추가 가능
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 class work extends StatefulWidget {
   const work({super.key});
 
   @override
   State<work> createState() => _HomeScreenState();
 }
+
 class _HomeScreenState extends State<work> {
   CalendarFormat _calendarFormat = CalendarFormat.month;
   DateTime _focusedDay = DateTime.now();
@@ -828,7 +668,7 @@ class _HomeScreenState extends State<work> {
         centerTitle: true,
         title: const CircleAvatar(
           radius: 25,
-          backgroundImage: NetworkImage('https://i.imgur.com/qgaYJWX.png'), // 기본 강아지 이미지
+          backgroundImage: NetworkImage('https://i.imgur.com/qgaYJWX.png'),
           backgroundColor: Colors.grey,
         ),
       ),
@@ -873,142 +713,6 @@ class _HomeScreenState extends State<work> {
                   _buildStatCard('이동거리', '-km'),
                   _buildStatCard('평균 속력', '-km/h'),
                   _buildStatCard('소요시간', '-시간'),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            Container(
-              height: 200,
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  const Text(
-                    '이동거리 그래프',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  Expanded(
-                    child: LineChart(
-                      LineChartData(
-                        gridData: const FlGridData(show: true),
-                        titlesData: FlTitlesData(
-                          leftTitles: AxisTitles(
-                            sideTitles: SideTitles(showTitles: true, reservedSize: 40, getTitlesWidget: (value, meta) {
-                              return Text('${value.toInt()} km'); // 이동거리 y축
-                            })),
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(showTitles: true, reservedSize: 40, getTitlesWidget: (value, meta) {
-                              return Text('${value.toInt() + 1}주차'); // 주차 x축 (0부터 시작하므로 +1)
-                            })),
-                        ),
-                        borderData: FlBorderData(show: true),
-                        lineBarsData: [
-                          LineChartBarData(
-                            spots: const [
-                              FlSpot(0, 1), // 1주차, 1km
-                              FlSpot(1, 2), // 2주차, 2km
-                              FlSpot(2, 3), // 3주차, 3km
-                              FlSpot(3, 4), // 4주차, 4km
-                              FlSpot(4, 5), // 5주차, 5km
-                            ],
-                            isCurved: true,
-                            color: Colors.green,
-                            barWidth: 3,
-                            dotData: const FlDotData(show: false),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              height: 200,
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  const Text(
-                    '속력 그래프',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  Expanded(
-                    child: LineChart(
-                      LineChartData(
-                        gridData: const FlGridData(show: true),
-                        titlesData: FlTitlesData(
-                          leftTitles: AxisTitles(
-                            sideTitles: SideTitles(showTitles: true, reservedSize: 40, getTitlesWidget: (value, meta) {
-                              return Text('${value.toInt()} km/h'); // 속력 y축
-                            })),
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(showTitles: true, reservedSize: 40, getTitlesWidget: (value, meta) {
-                              return Text('${value.toInt() + 1}주차'); // 주차 x축 (0부터 시작하므로 +1)
-                            })),
-                        ),
-                        borderData: FlBorderData(show: true),
-                        lineBarsData: [
-                          LineChartBarData(
-                            spots: const [
-                              FlSpot(0, 1), // 1주차, 1km/h
-                              FlSpot(1, 2), // 2주차, 2km/h
-                              FlSpot(2, 3), // 3주차, 3km/h
-                              FlSpot(3, 4), // 4주차, 4km/h
-                              FlSpot(4, 5), // 5주차, 5km/h
-                            ],
-                            isCurved: true,
-                            color: Colors.blue,
-                            barWidth: 3,
-                            dotData: const FlDotData(show: false),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              height: 200,
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  const Text(
-                    '소요시간 그래프',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  Expanded(
-                    child: LineChart(
-                      LineChartData(
-                        gridData: const FlGridData(show: true),
-                        titlesData: FlTitlesData(
-                          leftTitles: AxisTitles(
-                            sideTitles: SideTitles(showTitles: true, reservedSize: 40, getTitlesWidget: (value, meta) {
-                              return Text('${(value.toInt() * 30).toString().padLeft(2, '0')}:00'); // 소요시간 y축
-                            })),
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(showTitles: true, reservedSize: 40, getTitlesWidget: (value, meta) {
-                              return Text('${value.toInt() + 1}주차'); // 주차 x축 (0부터 시작하므로 +1)
-                            })),
-                        ),
-                        borderData: FlBorderData(show: true),
-                        lineBarsData: [
-                          LineChartBarData(
-                            spots: const [
-                              FlSpot(0, 0), // 1주차, 00:00
-                              FlSpot(1, 1), // 2주차, 00:30
-                              FlSpot(2, 2), // 3주차, 01:00
-                              FlSpot(3, 3), // 4주차, 01:30
-                              FlSpot(4, 4), // 5주차, 02:00
-                            ],
-                            isCurved: true,
-                            color: Colors.red,
-                            barWidth: 3,
-                            dotData: const FlDotData(show: false),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
