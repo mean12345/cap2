@@ -9,6 +9,7 @@ import 'dart:async';
 import 'package:dangq/calendar/calendar.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'add_dog_page.dart';
+import 'package:dangq/work_list/work_list.dart';
 
 class MainPage extends StatefulWidget {
   final String username;
@@ -436,6 +437,7 @@ class _MainPageState extends State<MainPage> {
       children: [
         _buildIconButton("캘린더", Icons.calendar_month, AppColors.mainYellow),
         _buildIconButton("게시판", Icons.assignment, AppColors.mainPink),
+        _buildIconButton("리스트", Icons.list, AppColors.olivegreen),
         _buildIconButton("산책", Icons.pets, AppColors.olivegreen),
       ],
     );
@@ -464,6 +466,10 @@ class _MainPageState extends State<MainPage> {
   }
 
   void _handleIconButtonTap(String label) {
+    // 현재 선택된 강아지 정보 가져오기
+    final currentDog = dogProfiles[_currentPhotoIndex];
+    final dogId = currentDog['id'];
+    final dogName = currentDog['dog_name'];
     switch (label) {
       case "캘린더":
         Navigator.push(
@@ -481,6 +487,17 @@ class _MainPageState extends State<MainPage> {
           ),
         );
         break;
+      case "리스트":
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => WorkList(
+              username: widget.username,
+              dogId: dogId,
+            ),
+          ),
+        );
+        break;
       case "산책":
         // 현재 선택된 강아지가 있는지 확인
         if (dogProfiles.isEmpty) {
@@ -490,11 +507,6 @@ class _MainPageState extends State<MainPage> {
           );
           return;
         }
-
-        // 현재 선택된 강아지 정보 가져오기
-        final currentDog = dogProfiles[_currentPhotoIndex];
-        final dogId = currentDog['id'];
-        final dogName = currentDog['dog_name'];
 
         print('선택한 강아지: $dogName (ID: $dogId)로 산책하기');
 
