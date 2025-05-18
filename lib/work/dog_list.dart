@@ -3,14 +3,15 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:dangq/work/walk_choose.dart';
 
 class DogListPage extends StatefulWidget {
   final String username;
+  final void Function(int, String, String) onDogSelected;
 
   const DogListPage({
     Key? key,
     required this.username,
+    required this.onDogSelected,
   }) : super(key: key);
 
   @override
@@ -36,7 +37,7 @@ class _DogListPageState extends State<DogListPage> {
 
     try {
       final url = '$baseUrl/dogs/get_dogs?username=${widget.username}';
-      print('요청 URL: $url'); // 요청 URL 확인 로그
+      print('요청 URL: $url');
 
       final response = await http.get(Uri.parse(url));
       print('응답 상태 코드: ${response.statusCode}');
@@ -162,17 +163,13 @@ class _DogListPageState extends State<DogListPage> {
 
                   print('선택한 반려견: $dogName (ID: $dogId)');
 
-                  // WalkChoose 페이지로 이동하면서 username과 dogId 전달
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => WalkChoose(
-                        username: widget.username,
-                        dogId: dogId,
-                        dogName: dogName,
-                      ),
-                    ),
+                  widget.onDogSelected(
+                    dogId,
+                    dogName,
+                    selectedDog['image_url'],
                   );
+
+                  Navigator.pop(context); // 콜백 호출 후 닫기
                 }
               : null,
           child: Text('선택하기'),

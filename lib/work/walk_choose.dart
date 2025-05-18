@@ -26,15 +26,29 @@ class WalkChoose extends StatefulWidget {
 
 class WalkChooseState extends State<WalkChoose> {
   List<Map<String, dynamic>> dogProfiles = [];
-  int _currentPhotoIndex = 0;
   bool _isLoading = false;
+
+  // 현재 선택된 강아지 정보
+  late int _selectedDogId;
+  late String _selectedDogName;
+  String _selectedDogImageUrl = '';
 
   final String baseUrl = dotenv.env['BASE_URL']!;
 
   @override
   void initState() {
     super.initState();
+    _selectedDogId = widget.dogId;
+    _selectedDogName = widget.dogName;
     _fetchDogProfiles();
+  }
+
+  void _updateSelectedDog(int dogId, String dogName, String imageUrl) {
+    setState(() {
+      _selectedDogId = dogId;
+      _selectedDogName = dogName;
+      _selectedDogImageUrl = imageUrl;
+    });
   }
 
   Future<void> _fetchDogProfiles() async {
@@ -49,7 +63,6 @@ class WalkChooseState extends State<WalkChoose> {
       if (response.statusCode == 404) {
         setState(() {
           dogProfiles = [];
-          _currentPhotoIndex = 0;
           _isLoading = false;
         });
         return;
@@ -66,10 +79,20 @@ class WalkChooseState extends State<WalkChoose> {
                   })
               .toList();
 
-          if (dogProfiles.isNotEmpty &&
-              _currentPhotoIndex >= dogProfiles.length) {
-            _currentPhotoIndex = dogProfiles.length - 1;
-          }
+          final selectedDog = dogProfiles.firstWhere(
+            (dog) => dog['id'] == _selectedDogId,
+            orElse: () => dogProfiles.isNotEmpty
+                ? dogProfiles[0]
+                : {
+                    'dog_name': _selectedDogName,
+                    'image_url': '',
+                    'id': _selectedDogId,
+                  },
+          );
+
+          _selectedDogId = selectedDog['id'];
+          _selectedDogName = selectedDog['dog_name'];
+          _selectedDogImageUrl = selectedDog['image_url'] ?? '';
 
           _isLoading = false;
         });
@@ -146,8 +169,12 @@ class WalkChooseState extends State<WalkChoose> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) =>
-                          DogListPage(username: widget.username),
+                      builder: (context) => DogListPage(
+                        username: widget.username,
+                        onDogSelected: (int id, String name, String imageUrl) {
+                          _updateSelectedDog(id, name, imageUrl);
+                        },
+                      ),
                     ),
                   );
                 },
@@ -159,16 +186,23 @@ class WalkChooseState extends State<WalkChoose> {
                     shape: BoxShape.circle,
                   ),
                   child: Center(
-                    child: _isLoading || dogProfiles.isEmpty
+                    child: _isLoading
                         ? const CircularProgressIndicator()
-                        : ClipOval(
-                            child: Image.network(
-                              dogProfiles[_currentPhotoIndex]['image_url'],
-                              width: 85,
-                              height: 85,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
+                        : _selectedDogImageUrl.isEmpty
+                            ? const Icon(Icons.pets,
+                                size: 50, color: Colors.grey)
+                            : ClipOval(
+                                child: Image.network(
+                                  _selectedDogImageUrl,
+                                  width: 85,
+                                  height: 85,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return const Icon(Icons.pets,
+                                        size: 50, color: Colors.grey);
+                                  },
+                                ),
+                              ),
                   ),
                 ),
               ),
@@ -180,9 +214,7 @@ class WalkChooseState extends State<WalkChoose> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    dogProfiles.isNotEmpty
-                        ? dogProfiles[_currentPhotoIndex]['dog_name']
-                        : widget.dogName,
+                    _selectedDogName,
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -212,8 +244,8 @@ class WalkChooseState extends State<WalkChoose> {
           MaterialPageRoute(
             builder: (context) => Work(
               username: widget.username,
-              dogId: widget.dogId,
-              dogName: widget.dogName,
+              dogId: _selectedDogId,
+              dogName: _selectedDogName,
             ),
           ),
         );
