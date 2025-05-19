@@ -324,7 +324,19 @@ class _MainPageState extends State<MainPage> {
                 dogName: dogName,
               ),
             ),
-          );
+          ).then((result) {
+            if (result != null && result is Map<String, dynamic>) {
+              setState(() {
+                int index = dogProfiles
+                    .indexWhere((dog) => dog['id'] == result['dogId']);
+                if (index != -1) {
+                  dogProfiles[index]['dog_name'] = result['dogName'];
+                  dogProfiles[index]['image_url'] = result['imageUrl'];
+                  _currentPhotoIndex = index;
+                }
+              });
+            }
+          });
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.lightgreen,
@@ -400,8 +412,6 @@ class _MainPageState extends State<MainPage> {
                       MaterialPageRoute(
                         builder: (context) => DogProfile(
                           username: widget.username,
-                          dogId: currentDog['id'],
-                          dogName: currentDog['dog_name'],
                         ),
                       ),
                     ).then((_) => _fetchDogProfilesSafely());
@@ -490,7 +500,6 @@ class _MainPageState extends State<MainPage> {
         );
         break;
       case "리스트":
-        // Check if there are any registered dogs
         if (dogProfiles.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('등록된 강아지가 없습니다. 먼저 강아지를 등록해주세요.')),
@@ -501,13 +510,27 @@ class _MainPageState extends State<MainPage> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => WalkChoose(
+            builder: (context) => WorkList(
               username: widget.username,
               dogId: dogId,
               dogName: dogName,
             ),
           ),
-        );
+        ).then((result) {
+          //페이지가 닫힐 때 프로필 정보 가져와서 업데이트
+          if (result != null && result is Map<String, dynamic>) {
+            // 현재 프로필 업데이트
+            setState(() {
+              int index =
+                  dogProfiles.indexWhere((dog) => dog['id'] == result['dogId']);
+              if (index != -1) {
+                dogProfiles[index]['dog_name'] = result['dogName'];
+                dogProfiles[index]['image_url'] = result['imageUrl'];
+                _currentPhotoIndex = index;
+              }
+            });
+          }
+        });
         break;
       case "산책":
         // 현재 선택된 강아지가 있는지 확인
@@ -530,7 +553,21 @@ class _MainPageState extends State<MainPage> {
               dogName: dogName,
             ),
           ),
-        );
+        ).then((result) {
+          //페이지가 닫힐 때 프로필 정보 가져와서 업데이트
+          if (result != null && result is Map<String, dynamic>) {
+            // 현재 프로필 업데이트
+            setState(() {
+              int index =
+                  dogProfiles.indexWhere((dog) => dog['id'] == result['dogId']);
+              if (index != -1) {
+                dogProfiles[index]['dog_name'] = result['dogName'];
+                dogProfiles[index]['image_url'] = result['imageUrl'];
+                _currentPhotoIndex = index;
+              }
+            });
+          }
+        });
         break;
     }
   }
