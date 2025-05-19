@@ -51,9 +51,9 @@ const [result] = await db
 //기록 조회
 router.get('/:username', async (req, res) => {
     const { username } = req.params;
+    const dogId = req.query.dog_id;
 
     try {
-        // 사용자 ID와 리더 ID 조회
         const [userInfo] = await db.promise().query(
             `SELECT u.user_id, u.role, 
               CASE 
@@ -66,41 +66,48 @@ router.get('/:username', async (req, res) => {
         );
 
         if (userInfo.length === 0) {
-            return res
-                .status(404)
-                .json({ message: '사용자를 찾을 수 없습니다.' });
+            return res.status(404).json({ message: '사용자를 찾을 수 없습니다.' });
         }
 
         const leaderId = userInfo[0].leader_id;
 
-        // tracking_data 조회
-        const [trackingData] = await db.promise().query(
-            `SELECT DISTINCT
+        let query = `
+            SELECT DISTINCT
               t.track_id,
               t.user_id,
               u.username,
               t.start_time,
               t.end_time,
               t.distance,
-              t.step_count,
+              IFNULL(t.speed, 0) AS speed,
               t.created_at
-             FROM tracking_data t
-             JOIN users u ON t.user_id = u.user_id
-             LEFT JOIN relationships r ON u.user_id = r.member_id
-             WHERE 
-               (u.user_id = ? OR r.leader_id = ?) 
-               OR
-               (t.user_id IN (SELECT member_id FROM relationships WHERE leader_id = ?))
-             ORDER BY t.created_at DESC`,
-            [leaderId, leaderId, leaderId]
-        );
+            FROM tracking_data t
+            JOIN users u ON t.user_id = u.user_id
+            LEFT JOIN relationships r ON u.user_id = r.member_id
+            WHERE 
+              (
+                (u.user_id = ? OR r.leader_id = ?) 
+                OR
+                (t.user_id IN (SELECT member_id FROM relationships WHERE leader_id = ?))
+              )
+        `;
+        const params = [leaderId, leaderId, leaderId];
 
-        // 날짜 포맷 변경
+        if (dogId) {
+            query += ' AND t.dog_id = ?';
+            params.push(dogId);
+        }
+
+        query += ' ORDER BY t.created_at DESC';
+
+        const [trackingData] = await db.promise().query(query, params);
+
         const formattedData = trackingData.map((data) => ({
             ...data,
             start_time: new Date(data.start_time).toLocaleString(),
             end_time: new Date(data.end_time).toLocaleString(),
             created_at: new Date(data.created_at).toLocaleString(),
+            speed: data.speed,
         }));
 
         res.status(200).json(formattedData);
@@ -111,6 +118,7 @@ router.get('/:username', async (req, res) => {
         });
     }
 });
+
 
 //산책 기록 삭제
 router.delete('/:id', (req, res) => {
@@ -125,61 +133,56 @@ router.delete('/:id', (req, res) => {
     );
 });
 
-//기록 평균값 조회
+// 기록 평균값 조회 (속력 포함)
 router.get('/avg/:username', async (req, res) => {
     const { username } = req.params;
 
     try {
         console.log(`Received request for username: ${username}`);
 
-        //username -> user_id 가져오기
+        // username -> user_id 가져오기
         const [userInfo] = await db
             .promise()
             .query(`SELECT user_id FROM users WHERE username = ?`, [username]);
 
         if (userInfo.length === 0) {
-            return res
-                .status(404)
-                .json({ message: '사용자를 찾을 수 없습니다.' });
+            return res.status(404).json({ message: '사용자를 찾을 수 없습니다.' });
         }
 
         const userId = userInfo[0].user_id;
 
-        //user_id가 속한 그룹의 leader_id 찾기
+        // user_id가 속한 그룹의 leader_id 찾기
         const [relationship] = await db
             .promise()
             .query(
-                `SELECT leader_id FROM relationships WHERE member_id = ? UNION SELECT ? AS leader_id WHERE EXISTS (SELECT 1 FROM relationships WHERE leader_id = ?)`,
+                `SELECT leader_id FROM relationships WHERE member_id = ? 
+                 UNION 
+                 SELECT ? AS leader_id WHERE EXISTS (SELECT 1 FROM relationships WHERE leader_id = ?)`,
                 [userId, userId, userId]
             );
 
         if (relationship.length === 0) {
-            return res.status(404).json({
-                message: '사용자가 속한 그룹이 없습니다.',
-            });
+            return res.status(404).json({ message: '사용자가 속한 그룹이 없습니다.' });
         }
 
         const leaderId = relationship[0].leader_id;
 
-        //leader_id를 기준으로 그 그룹의 모든 member_id 가져오기
+        // leader_id를 기준으로 그 그룹의 모든 member_id 가져오기
         const [groupMembers] = await db
             .promise()
-            .query(`SELECT member_id FROM relationships WHERE leader_id = ?`, [
-                leaderId,
-            ]);
+            .query(`SELECT member_id FROM relationships WHERE leader_id = ?`, [leaderId]);
 
         const memberIds = groupMembers.map((row) => row.member_id);
 
-        //groupMembers가 비어있을 수 있으니, leader 포함.
+        // groupMembers가 비어있을 수 있으니, leader 포함
         memberIds.push(leaderId);
 
         console.log('Group Member IDs:', memberIds);
 
-        //그룹의 모든 멤버들의 활동 데이터 평균값 계산
+        // 그룹의 모든 멤버들의 활동 데이터 평균값 계산
         const [trackingData] = await db.promise().query(
             `SELECT 
                 AVG(distance) AS avg_distance,
-                AVG(step_count) AS avg_steps,
                 AVG(TIMESTAMPDIFF(SECOND, start_time, end_time)) / 60 AS avg_time_minutes
             FROM tracking_data 
             WHERE user_id IN (${memberIds.map(() => '?').join(', ')})
@@ -198,20 +201,25 @@ router.get('/avg/:username', async (req, res) => {
         );
 
         if (!trackingData || trackingData.length === 0) {
-            return res.status(404).json({
-                message: '이번 달의 데이터가 없습니다.',
-            });
+            return res.status(404).json({ message: '이번 달의 데이터가 없습니다.' });
         }
 
+        const avgDistance = trackingData[0].avg_distance || 0;       
+        const avgTimeMin = trackingData[0].avg_time_minutes || 0;
+
+
+        const avgSpeedKmh = (avgTimeMin > 0) ? (avgDistance * 60) / (1000 * avgTimeMin) : 0;
+
         res.status(200).json({
-            avg_distance: trackingData[0].avg_distance || 0,
-            avg_steps: trackingData[0].avg_steps || 0,
-            avg_time_minutes: trackingData[0].avg_time_minutes || 0,
+            avg_distance: avgDistance,
+            avg_time_minutes: avgTimeMin,
+            avg_speed_kmh: avgSpeedKmh,
         });
     } catch (error) {
         console.error('Error fetching group stats:', error);
         res.status(500).json({ message: '데이터를 불러오는데 실패했습니다.' });
     }
 });
+
 
 module.exports = router;

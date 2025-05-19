@@ -121,7 +121,11 @@ class WalkChooseState extends State<WalkChoose> {
           leading: IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.black, size: 35),
             onPressed: () {
-              Navigator.pop(context);
+              Navigator.pop(context, {
+                'dogId': _selectedDogId,
+                'dogName': _selectedDogName,
+                'imageUrl': _selectedDogImageUrl,
+              });
             },
           ),
           backgroundColor: Colors.transparent,
@@ -241,7 +245,15 @@ class WalkChooseState extends State<WalkChoose> {
               dogName: _selectedDogName,
             ),
           ),
-        );
+        ).then((result) {
+          if (result != null && result is Map<String, dynamic>) {
+            _updateSelectedDog(
+              result['dogId'],
+              result['dogName'],
+              result['imageUrl'],
+            );
+          }
+        });
       },
       child: Container(
         width: 300,
