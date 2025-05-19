@@ -9,6 +9,8 @@ import 'dart:async';
 import 'package:dangq/calendar/calendar.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'add_dog_page.dart';
+import 'package:dangq/work_list/work_list.dart';
+import 'package:dangq/pages/dog_profile/dog_profile.dart';
 
 class MainPage extends StatefulWidget {
   final String username;
@@ -223,19 +225,6 @@ class _MainPageState extends State<MainPage> {
       backgroundColor: AppColors.background,
       appBar: _buildAppBar(context),
       body: _buildBody(context),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.mainYellow,
-        child: const Icon(Icons.add, color: Colors.black),
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) =>
-                  EditDogProfilePage(username: widget.username),
-            ),
-          ).then((_) => _fetchDogProfilesSafely());
-        },
-      ),
     );
   }
 
@@ -303,7 +292,54 @@ class _MainPageState extends State<MainPage> {
           _buildDogProfileSection(),
           const SizedBox(height: 20),
           _buildIconButtonRow(),
+          const SizedBox(height: 20),
+          _buildWalkButton(),
         ],
+      ),
+    );
+  }
+
+  Widget _buildWalkButton() {
+    return SizedBox(
+      width: 250,
+      height: 50,
+      child: ElevatedButton(
+        onPressed: () {
+          if (dogProfiles.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('등록된 강아지가 없습니다. 먼저 강아지를 등록해주세요.')),
+            );
+            return;
+          }
+          final currentDog = dogProfiles[_currentPhotoIndex];
+          final dogId = currentDog['id'];
+          final dogName = currentDog['dog_name'];
+
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => WalkChoose(
+                username: widget.username,
+                dogId: dogId,
+                dogName: dogName,
+              ),
+            ),
+          );
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.lightgreen,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+        ),
+        child: const Text(
+          '산책하기',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+          ),
+        ),
       ),
     );
   }
@@ -347,63 +383,44 @@ class _MainPageState extends State<MainPage> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Stack(
-          alignment: Alignment.bottomRight,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircleAvatar(
-              radius: 80,
-              backgroundImage: currentDog['image_url'] != null
-                  ? NetworkImage(currentDog['image_url'])
-                  : null,
-              child: currentDog['image_url'] == null
-                  ? const Icon(Icons.pets, size: 80)
-                  : null,
+            IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: _prevDogProfile,
             ),
-            // 삭제 버튼
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(15),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.3),
-                    spreadRadius: 1,
-                    blurRadius: 3,
-                    offset: const Offset(0, 1),
+            Stack(
+              alignment: Alignment.bottomRight,
+              children: [
+                InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => DogProfile(
+                          username: widget.username,
+                          dogId: currentDog['id'],
+                          dogName: currentDog['dog_name'],
+                        ),
+                      ),
+                    ).then((_) => _fetchDogProfilesSafely());
+                  },
+                  child: CircleAvatar(
+                    radius: 90,
+                    backgroundImage: currentDog['image_url'] != null
+                        ? NetworkImage(currentDog['image_url'])
+                        : null,
+                    child: currentDog['image_url'] == null
+                        ? const Icon(Icons.pets, size: 90)
+                        : null,
                   ),
-                ],
-              ),
-              child: IconButton(
-                icon: const Icon(Icons.delete, color: Colors.red),
-                onPressed: () {
-                  // 삭제 확인 다이얼로그 표시
-                  showDialog(
-                    context: context,
-                    builder: (BuildContext context) {
-                      return AlertDialog(
-                        title: const Text('강아지 프로필 삭제'),
-                        content:
-                            Text('${currentDog['dog_name']} 프로필을 삭제하시겠습니까?'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(),
-                            child: const Text('취소'),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                              // 강아지 ID로 삭제 함수 호출
-                              _deleteDogProfile(currentDog['id']);
-                            },
-                            child: const Text('삭제',
-                                style: TextStyle(color: Colors.red)),
-                          ),
-                        ],
-                      );
-                    },
-                  );
-                },
-              ),
+                ),
+              ],
+            ),
+            IconButton(
+              icon: const Icon(Icons.arrow_forward),
+              onPressed: _nextDogProfile,
             ),
           ],
         ),
@@ -413,19 +430,6 @@ class _MainPageState extends State<MainPage> {
           style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 20),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: _prevDogProfile,
-            ),
-            IconButton(
-              icon: const Icon(Icons.arrow_forward),
-              onPressed: _nextDogProfile,
-            ),
-          ],
-        ),
       ],
     );
   }
@@ -436,7 +440,7 @@ class _MainPageState extends State<MainPage> {
       children: [
         _buildIconButton("캘린더", Icons.calendar_month, AppColors.mainYellow),
         _buildIconButton("게시판", Icons.assignment, AppColors.mainPink),
-        _buildIconButton("산책", Icons.pets, AppColors.olivegreen),
+        _buildIconButton("리스트", Icons.list, AppColors.olivegreen),
       ],
     );
   }
@@ -464,6 +468,10 @@ class _MainPageState extends State<MainPage> {
   }
 
   void _handleIconButtonTap(String label) {
+    // 현재 선택된 강아지 정보 가져오기
+    final currentDog = dogProfiles[_currentPhotoIndex];
+    final dogId = currentDog['id'];
+    final dogName = currentDog['dog_name'];
     switch (label) {
       case "캘린더":
         Navigator.push(
@@ -481,6 +489,26 @@ class _MainPageState extends State<MainPage> {
           ),
         );
         break;
+      case "리스트":
+        // Check if there are any registered dogs
+        if (dogProfiles.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('등록된 강아지가 없습니다. 먼저 강아지를 등록해주세요.')),
+          );
+          return;
+        }
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => WalkChoose(
+              username: widget.username,
+              dogId: dogId,
+              dogName: dogName,
+            ),
+          ),
+        );
+        break;
       case "산책":
         // 현재 선택된 강아지가 있는지 확인
         if (dogProfiles.isEmpty) {
@@ -490,11 +518,6 @@ class _MainPageState extends State<MainPage> {
           );
           return;
         }
-
-        // 현재 선택된 강아지 정보 가져오기
-        final currentDog = dogProfiles[_currentPhotoIndex];
-        final dogId = currentDog['id'];
-        final dogName = currentDog['dog_name'];
 
         print('선택한 강아지: $dogName (ID: $dogId)로 산책하기');
 

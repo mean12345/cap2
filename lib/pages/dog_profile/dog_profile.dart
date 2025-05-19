@@ -4,7 +4,16 @@ import 'package:dangq/pages/dog_profile/add_dog_profile.dart';
 import 'package:dangq/pages/dog_profile/fix_dog_profile.dart'; // import 추가
 
 class DogProfile extends StatefulWidget {
-  const DogProfile({super.key});
+  final String username;
+  final int dogId;
+  final String dogName;
+
+  const DogProfile({
+    super.key,
+    required this.username,
+    required this.dogId,
+    required this.dogName,
+  });
 
   @override
   State<DogProfile> createState() => _DogProfileState();
