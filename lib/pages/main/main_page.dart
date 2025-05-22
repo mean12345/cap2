@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../colors.dart';
+import 'package:dangq/colors.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:dangq/setting_pages/settings_page.dart';
@@ -8,9 +8,12 @@ import 'package:dangq/work/walk_choose.dart';
 import 'dart:async';
 import 'package:dangq/calendar/calendar.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'add_dog_page.dart';
 import 'package:dangq/work_list/work_list.dart';
 import 'package:dangq/pages/dog_profile/dog_profile.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:dangq/pages/main/weather_container.dart';
+import 'package:dangq/pages/dog_profile/add_dog_page.dart';
 
 class MainPage extends StatefulWidget {
   final String username;
@@ -36,11 +39,17 @@ class _MainPageState extends State<MainPage> {
 
   final String baseUrl = dotenv.get('BASE_URL');
 
+  String location = '위치 불러오는 중...';
+  String temperature = '--';
+  String dustStatus = '정보없음';
+  String uvStatus = '정보없음';
+
   @override
   void initState() {
     super.initState();
     _loadProfileInfo();
     _fetchDogProfilesSafely();
+    fetchWeather();
   }
 
   void _fetchDogProfilesSafely() {
@@ -288,6 +297,14 @@ class _MainPageState extends State<MainPage> {
       padding: const EdgeInsets.symmetric(horizontal: 18),
       child: Column(
         children: [
+          const SizedBox(height: 20),
+          // 날씨 컨테이너 추가
+          WeatherContainer(
+            location: location,
+            temperature: temperature,
+            dustStatus: dustStatus,
+            uvStatus: uvStatus,
+          ),
           const SizedBox(height: 20),
           _buildDogProfileSection(),
           const SizedBox(height: 20),
@@ -569,6 +586,83 @@ class _MainPageState extends State<MainPage> {
           }
         });
         break;
+    }
+  }
+
+  // 날씨 정보 로드
+  Future<void> fetchWeather() async {
+    try {
+      final apiKey = dotenv.env['OPENWEATHER_API_KEY'];
+      if (apiKey == null) throw Exception('API 키 누락');
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.deniedForever) {
+        throw Exception('위치 권한 거부됨');
+      }
+
+      Position pos = await Geolocator.getCurrentPosition();
+
+      List<Placemark> placemarks =
+          await placemarkFromCoordinates(pos.latitude, pos.longitude);
+      setState(() {
+        location = placemarks.isNotEmpty
+            ? '${placemarks[0].administrativeArea} ${placemarks[0].locality}'
+            : '위치 불러오는 중...';
+      });
+
+      final weatherUrl =
+          'https://api.openweathermap.org/data/2.5/weather?lat=${pos.latitude}&lon=${pos.longitude}&appid=$apiKey&units=metric&lang=kr';
+      final weatherResponse = await http.get(Uri.parse(weatherUrl));
+
+      if (weatherResponse.statusCode == 200) {
+        final weatherData = json.decode(weatherResponse.body);
+        setState(() {
+          temperature = weatherData['main']['temp'].toStringAsFixed(1);
+        });
+
+        // 미세먼지 데이터 가져오기
+        final airUrl =
+            'http://api.openweathermap.org/data/2.5/air_pollution?lat=${pos.latitude}&lon=${pos.longitude}&appid=$apiKey';
+        final airResponse = await http.get(Uri.parse(airUrl));
+
+        if (airResponse.statusCode == 200) {
+          final airData = json.decode(airResponse.body);
+          final pm25 = airData['list'][0]['components']['pm2_5'];
+          setState(() {
+            dustStatus = pm25 <= 15
+                ? '좋음'
+                : pm25 <= 35
+                    ? '보통'
+                    : pm25 <= 75
+                        ? '나쁨'
+                        : '매우나쁨';
+          });
+        }
+
+        // UV 데이터 가져오기
+        final uvUrl =
+            'http://api.openweathermap.org/data/2.5/uvi?lat=${pos.latitude}&lon=${pos.longitude}&appid=$apiKey';
+        final uvResponse = await http.get(Uri.parse(uvUrl));
+
+        if (uvResponse.statusCode == 200) {
+          final uvData = json.decode(uvResponse.body);
+          final uvIndex = uvData['value'];
+          setState(() {
+            uvStatus = uvIndex <= 2
+                ? '좋음'
+                : uvIndex <= 5
+                    ? '보통'
+                    : uvIndex <= 7
+                        ? '높음'
+                        : '매우높음';
+          });
+        }
+      }
+    } catch (e) {
+      print('날씨 정보 로드 실패: $e');
     }
   }
 }
