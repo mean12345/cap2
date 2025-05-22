@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:dangq/colors.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:dangq/pages/main_page.dart';
+import 'package:dangq/pages/main/main_page.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:dangq/login/widget_login.dart';
 
