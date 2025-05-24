@@ -58,25 +58,43 @@ class _Add_dogState extends State<Add_dog> {
 
     try {
       final String baseUrl = dotenv.get('BASE_URL');
-      var request =
-          http.MultipartRequest('POST', Uri.parse('$baseUrl/dogs/add_dog'));
+      String? imageUrl;
 
-      request.fields['username'] = widget.username;
-      request.fields['name'] = _nameController.text;
-
+      // 1. 이미지 업로드
       if (_imageFile != null) {
-        request.files.add(await http.MultipartFile.fromPath(
-          'image',
-          _imageFile!.path,
-        ));
+        var imageRequest = http.MultipartRequest(
+          'POST',
+          Uri.parse('$baseUrl/dogs/dogs_profile'),
+        );
+        imageRequest.files.add(
+          await http.MultipartFile.fromPath('image', _imageFile!.path),
+        );
+
+        final imageResponse = await imageRequest.send();
+        final imageBody = await http.Response.fromStream(imageResponse);
+
+        if (imageResponse.statusCode == 200) {
+          final imageJson = jsonDecode(imageBody.body);
+          imageUrl = imageJson['url'];
+        } else {
+          throw Exception('이미지 업로드 실패');
+        }
       }
 
-      final response = await request.send();
-      final responseString = await response.stream.bytesToString();
+      // 2. 강아지 정보 등록
+      final response = await http.post(
+        Uri.parse('$baseUrl/dogs'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'username': widget.username,
+          'dog_name': _nameController.text,
+          'image_url': imageUrl,
+        }),
+      );
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 201) {
         if (mounted) {
-          Navigator.pop(context);
+          Navigator.pop(context, true);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('강아지 프로필이 저장되었습니다')),
           );

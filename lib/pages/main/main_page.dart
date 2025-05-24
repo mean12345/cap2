@@ -327,10 +327,8 @@ class _MainPageState extends State<MainPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text('등록된 강아지가 없습니다.'),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () {
+            InkWell(
+              onTap: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -338,8 +336,22 @@ class _MainPageState extends State<MainPage> {
                   ),
                 ).then((_) => _fetchDogProfilesSafely());
               },
-              child: const Text('강아지 등록하기'),
+              child: CircleAvatar(
+                radius: 90,
+                backgroundColor: Colors.grey[200],
+                child: const Icon(
+                  Icons.add,
+                  size: 60,
+                  color: Colors.grey,
+                ),
+              ),
             ),
+            const SizedBox(height: 10),
+            const Text(
+              '반려견을 등록해주세요!',
+              style: TextStyle(fontSize: 18),
+            ),
+            const SizedBox(height: 10),
           ],
         ),
       );

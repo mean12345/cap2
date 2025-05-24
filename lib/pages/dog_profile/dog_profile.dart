@@ -179,16 +179,26 @@ class _DogProfileState extends State<DogProfile> {
                     final confirm = await showDialog<bool>(
                       context: context,
                       builder: (context) => AlertDialog(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        backgroundColor: AppColors.background,
                         title: const Text('삭제 확인'),
                         content: const Text('이 강아지 프로필을 삭제하시겠습니까?'),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(context, false),
                             child: const Text('취소'),
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.grey,
+                            ),
                           ),
                           TextButton(
                             onPressed: () => Navigator.pop(context, true),
                             child: const Text('삭제'),
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.red,
+                            ),
                           ),
                         ],
                       ),
