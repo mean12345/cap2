@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'add_dog_profile.dart';
 import 'fix_dog_profile.dart';
+import 'package:dangq/pages/main/main_page.dart';
 
 class DogProfile extends StatefulWidget {
   final String username;
@@ -112,32 +113,6 @@ class _DogProfileState extends State<DogProfile> {
                     return _buildDogProfileCircle(dogProfiles[index]);
                   },
                 ),
-                Positioned(
-                  bottom: 30,
-                  left: 20,
-                  right: 20,
-                  child: Container(
-                    width: double.infinity,
-                    height: 55,
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.lightgreen,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(5),
-                        ),
-                      ),
-                      child: const Text(
-                        '선택하기',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
               ],
             ),
     );
@@ -149,7 +124,12 @@ class _DogProfileState extends State<DogProfile> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => const Fix_dog(),
+            builder: (context) => Fix_dog(
+              username: widget.username,
+              dogId: dog['id'],
+              dogName: dog['dog_name'],
+              imageUrl: dog['image_url'],
+            ),
           ),
         ).then((_) => _fetchDogProfiles());
       },
@@ -186,8 +166,8 @@ class _DogProfileState extends State<DogProfile> {
         Navigator.push(
           context,
           MaterialPageRoute(
-              builder: (context) => const Add_dog()), //+을 누르면 프로필 생성성 페이지로 이동
-        );
+              builder: (context) => Add_dog(username: widget.username)),
+        ).then((_) => _fetchDogProfiles());
       },
       child: Column(
         mainAxisSize: MainAxisSize.min,
