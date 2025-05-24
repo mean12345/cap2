@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import 'create_post_page.dart';
 import 'post_detail_page.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -73,7 +75,7 @@ class _BoardPageState extends State<BoardPage> {
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body);
         return {
-          'nickname': jsonResponse['nickname'] ?? '닉네임을 불러오는 중...',
+          'nickname': jsonResponse['nickname'] ?? '',
           'profile_picture': jsonResponse['profile_picture'] ?? '',
         };
       } else {
@@ -155,20 +157,52 @@ class _BoardPageState extends State<BoardPage> {
     bool? confirm = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('게시글 삭제'),
-          content: const Text('정말 삭제하시겠습니까?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('취소'),
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(5),
+          ),
+          child: Container(
+            padding: EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(5),
             ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('삭제'),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '삭제 확인',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 25),
+                Text('이 게시글을 삭제하시겠습니까?'),
+                SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    TextButton(
+                      child: Text(
+                        '취소',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                      onPressed: () => Navigator.pop(context, false),
+                    ),
+                    SizedBox(width: 30),
+                    TextButton(
+                      child: Text(
+                        '삭제',
+                        style: TextStyle(color: Color(0xFF4DA374)),
+                      ),
+                      onPressed: () => Navigator.pop(context, true),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
+          ),
         );
       },
     );
@@ -236,187 +270,240 @@ class _BoardPageState extends State<BoardPage> {
         ],
       ),
       backgroundColor: Colors.white, // 전체 배경을 흰색으로 설정
-      body: ListView.builder(
-        itemCount: posts.length,
-        itemBuilder: (context, index) {
-          final post = posts[index];
-          if (post['video_url'] != null &&
-              post['video_url'].toString().isNotEmpty) {
-            if (_videoController == null ||
-                _videoController!.dataSource != post['video_url']) {
-              _initializeVideoController(post['video_url']);
-            }
-          }
-          return Card(
-            color: Colors.white,
-            margin: const EdgeInsets.all(8),
-            shape: RoundedRectangleBorder(
-              side: BorderSide(color: Color(0xFF4DA374), width: 2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ListTile(
-                  leading: FutureBuilder<Map<String, String>>(
-                    future: _fetchProfileInfo(post[
-                        'username']), // username에 맞는 프로필 이미지 URL과 닉네임을 반환받음
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const CircleAvatar(
-                          child: CircularProgressIndicator(),
-                        ); // 로딩 중에는 로딩 아이콘 표시
-                      } else if (snapshot.hasError) {
-                        return const CircleAvatar(
-                          child: Icon(Icons.person),
-                        ); // 오류 발생 시 기본 아이콘 표시
-                      } else if (snapshot.hasData) {
-                        final profileInfo = snapshot.data!;
-                        // 프로필 이미지가 있으면 이미지로, 없으면 기본 아이콘 표시
-                        return profileInfo['profile_picture'] != null &&
-                                profileInfo['profile_picture']!.isNotEmpty
-                            ? CircleAvatar(
-                                backgroundImage: NetworkImage(
-                                    profileInfo['profile_picture']!),
-                              )
-                            : const Icon(
-                                Icons.person); // 프로필 이미지가 없을 경우 기본 아이콘 표시
-                      } else {
-                        return const Icon(
-                            Icons.person); // 프로필 이미지가 없을 경우 기본 아이콘 표시
-                      }
-                    },
-                  ),
-                  title: FutureBuilder<Map<String, String>>(
-                    future: _fetchProfileInfo(
-                        post['username']), // username에 해당하는 닉네임을 가져옴
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Text(
-                            '닉네임을 불러오는 중...'); // 닉네임을 불러오는 중일 때 표시되는 텍스트
-                      } else if (snapshot.hasError) {
-                        return const Text('닉네임을 불러오는 데 실패했습니다.');
-                      } else if (snapshot.hasData) {
-                        final profileInfo = snapshot.data!;
-                        return Text(
-                          profileInfo['nickname'] ??
-                              '닉네임을 불러오는 중...', // 닉네임을 불러온 경우
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        );
-                      } else {
-                        return const Text('닉네임을 불러오는 중...'); // 닉네임이 없을 경우 표시
-                      }
-                    },
-                  ),
-                  subtitle: Text(post['created_at']),
-                  trailing: widget.username == post['username']
-                      ? IconButton(
-                          padding: const EdgeInsets.only(left: 8, top: 8),
-                          icon: const Icon(Icons.delete),
-                          onPressed: () => _deletePost(
-                            post['post_id'],
-                            post['username'],
-                          ),
-                        )
-                      : null,
-                ),
-                Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 25, vertical: 10),
-                  child: Text(post['content']),
-                ),
+      body: Column(
+        children: [
+          const Divider(
+            height: 1,
+            thickness: 1,
+            color: Color(0xFFB2D8C5), // 연한 초록색 계열로 구분선
+          ),
+          Expanded(
+            child: ListView.separated(
+              itemCount: posts.length,
+              separatorBuilder: (context, index) => const Divider(
+                height: 1,
+                thickness: 1,
+                color: Color(0xFFB2D8C5), // 연한 초록색 계열로 구분선
+              ),
+              itemBuilder: (context, index) {
+                final post = posts[index];
                 if (post['video_url'] != null &&
-                    post['video_url'].toString().isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Container(
-                      constraints: const BoxConstraints(maxHeight: 300),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          _videoController != null &&
-                                  _videoController!.value.isInitialized
-                              ? ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: SizedBox(
-                                    width: double.infinity,
-                                    height: 300,
-                                    child: FittedBox(
-                                      fit: BoxFit.cover,
-                                      child: SizedBox(
-                                        width:
-                                            _videoController!.value.size.width,
-                                        height:
-                                            _videoController!.value.size.height,
-                                        child: VideoPlayer(_videoController!),
-                                      ),
-                                    ),
-                                  ),
-                                )
-                              : const Center(
-                                  child: CircularProgressIndicator()),
-                          const Icon(
-                            Icons.play_circle_outline,
-                            size: 50,
-                            color: Colors.white,
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                else if (post['image_url'] != null &&
-                    post['image_url'].toString().isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Container(
-                      constraints: const BoxConstraints(maxHeight: 300),
-                      child: Image.network(
-                        post['image_url'],
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) {
-                          print('Image error: $error');
-                          return const Center(child: Text('이미지를 불러올 수 없습니다.'));
-                        },
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Center(
-                            child: CircularProgressIndicator(
-                              value: loadingProgress.expectedTotalBytes != null
-                                  ? loadingProgress.cumulativeBytesLoaded /
-                                      loadingProgress.expectedTotalBytes!
-                                  : null,
+                    post['video_url'].toString().isNotEmpty) {
+                  if (_videoController == null ||
+                      _videoController!.dataSource != post['video_url']) {
+                    _initializeVideoController(post['video_url']);
+                  }
+                }
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      InkWell(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => PostDetailPage(
+                                post: post,
+                                username: widget.username,
+                              ),
                             ),
                           );
                         },
-                      ),
-                    ),
-                  ),
-                Padding(
-                  padding: const EdgeInsets.only(right: 16, bottom: 8),
-                  child: Align(
-                    alignment: Alignment.bottomRight,
-                    child: IconButton(
-                      icon: const Icon(Icons.comment),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => PostDetailPage(
-                              post: post,
-                              username: widget.username,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            ListTile(
+                              leading: FutureBuilder<Map<String, String>>(
+                                future: _fetchProfileInfo(post[
+                                    'username']), // username에 맞는 프로필 이미지 URL과 닉네임을 반환받음
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState ==
+                                      ConnectionState.waiting) {
+                                    return const CircleAvatar(
+                                      child: CircularProgressIndicator(),
+                                    ); // 로딩 중에는 로딩 아이콘 표시
+                                  } else if (snapshot.hasError) {
+                                    return const CircleAvatar(
+                                      child: Icon(Icons.person),
+                                    ); // 오류 발생 시 기본 아이콘 표시
+                                  } else if (snapshot.hasData) {
+                                    final profileInfo = snapshot.data!;
+                                    // 프로필 이미지가 있으면 이미지로, 없으면 기본 아이콘 표시
+                                    return profileInfo['profile_picture'] != null &&
+                                            profileInfo['profile_picture']!.isNotEmpty
+                                        ? CircleAvatar(
+                                            backgroundImage: NetworkImage(
+                                                profileInfo['profile_picture']!),
+                                          )
+                                        : const Icon(
+                                            Icons.person); // 프로필 이미지가 없을 경우 기본 아이콘 표시
+                                  } else {
+                                    return const Icon(
+                                        Icons.person); // 프로필 이미지가 없을 경우 기본 아이콘 표시
+                                  }
+                                },
+                              ),
+                              title: FutureBuilder<Map<String, String>>(
+                                future: _fetchProfileInfo(
+                                    post['username']), // username에 해당하는 닉네임을 가져옴
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState ==
+                                      ConnectionState.waiting) {
+                                    return const Text(''); // 로딩 중일 때는 빈 텍스트 표시
+                                  } else if (snapshot.hasError) {
+                                    return const Text('닉네임을 불러오는 데 실패했습니다.');
+                                  } else if (snapshot.hasData) {
+                                    final profileInfo = snapshot.data!;
+                                    return Text(
+                                      profileInfo['nickname'] ?? '', // 닉네임이 없을 경우 빈 문자열 표시
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    );
+                                  } else {
+                                    return const Text(''); // 데이터가 없을 경우 빈 텍스트 표시
+                                  }
+                                },
+                              ),
+                              subtitle: Text(post['created_at']),
+                              trailing: widget.username == post['username']
+                                  ? PopupMenuButton<String>(
+                                      icon: const Icon(Icons.more_vert),
+                                      color: Colors.white,
+                                      onSelected: (String choice) {
+                                        if (choice == 'edit') {
+                                          // TODO: 게시글 수정 기능 구현
+                                          print('게시글 수정: ${post['post_id']}');
+                                        } else if (choice == 'delete') {
+                                          _deletePost(post['post_id'], post['username']); // 삭제 기능 호출
+                                        }
+                                      },
+                                      itemBuilder: (BuildContext context) {
+                                        return [
+                                          PopupMenuItem<String>(
+                                            value: 'edit',
+                                            padding: EdgeInsets.symmetric(horizontal: 0.5), // 좌우 패딩 조절
+                                            child: Center(child: Text('수정하기')), // 가운데 정렬
+                                          ),
+                                          const PopupMenuDivider(), // 구분선 추가
+                                          PopupMenuItem<String>(
+                                            value: 'delete',
+                                            padding: EdgeInsets.symmetric(horizontal: 0.5), // 좌우 패딩 조절
+                                            child: Center(child: Text('삭제하기', style: TextStyle(color: Colors.red))), // 가운데 정렬
+                                          ),
+                                        ];
+                                      },
+                                    )
+                                  : null,
                             ),
-                          ),
-                        ).then((_) => _loadPosts());
-                      },
-                    ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                              child: Text(
+                                post['content'],
+                                style: const TextStyle(fontSize: 16),
+                                textAlign: TextAlign.left,
+                              ),
+                            ),
+                            if (post['video_url'] != null &&
+                                post['video_url'].toString().isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                child: Container(
+                                  constraints: const BoxConstraints(maxHeight: 300),
+                                  child: Stack(
+                                    alignment: Alignment.center,
+                                    children: [
+                                      _videoController != null &&
+                                              _videoController!.value.isInitialized
+                                          ? ClipRRect(
+                                              borderRadius: BorderRadius.circular(8),
+                                              child: SizedBox(
+                                                width: double.infinity,
+                                                height: 300,
+                                                child: FittedBox(
+                                                  fit: BoxFit.cover,
+                                                  child: SizedBox(
+                                                    width: _videoController!
+                                                        .value.size.width,
+                                                    height: _videoController!
+                                                        .value.size.height,
+                                                    child: VideoPlayer(_videoController!),
+                                                  ),
+                                                ),
+                                              ),
+                                            )
+                                          : const Center(
+                                              child: CircularProgressIndicator()),
+                                      const Icon(
+                                        Icons.play_circle_outline,
+                                        size: 50,
+                                        color: Colors.white,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            else if (post['image_url'] != null &&
+                                post['image_url'].toString().isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                child: Container(
+                                  constraints: const BoxConstraints(maxHeight: 300),
+                                  child: Image.network(
+                                    post['image_url'],
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      print('Image error: $error');
+                                      return const Center(
+                                          child: Text('이미지를 불러올 수 없습니다.'));
+                                    },
+                                    loadingBuilder: (context, child, loadingProgress) {
+                                      if (loadingProgress == null) return child;
+                                      return Center(
+                                        child: CircularProgressIndicator(
+                                          value: loadingProgress.expectedTotalBytes !=
+                                                  null
+                                              ? loadingProgress.cumulativeBytesLoaded /
+                                                  loadingProgress.expectedTotalBytes!
+                                              : null,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                            Padding(
+                              padding: const EdgeInsets.only(right: 16, bottom: 8),
+                              child: Align(
+                                alignment: Alignment.bottomRight,
+                                child: IconButton(
+                                  icon: const Icon(Icons.comment),
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => PostDetailPage(
+                                          post: post,
+                                          username: widget.username,
+                                        ),
+                                      ),
+                                    ).then((_) => _loadPosts());
+                                  },
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
+                );
+              },
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }
