@@ -13,7 +13,7 @@ import 'package:dangq/pages/dog_profile/dog_profile.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:dangq/pages/main/weather_container.dart';
-import 'package:dangq/pages/dog_profile/add_dog_page.dart';
+import 'package:dangq/pages/dog_profile/add_dog_profile.dart';
 
 class MainPage extends StatefulWidget {
   final String username;
@@ -147,62 +147,6 @@ class _MainPageState extends State<MainPage> {
       });
       print('예외 발생: $e');
       rethrow;
-    }
-  }
-
-  Future<void> _deleteDogProfile(int dogId) async {
-    try {
-      final url = '$baseUrl/dogs/$dogId';
-      final response = await http.delete(Uri.parse(url));
-
-      if (response.statusCode == 200) {
-        // 삭제 성공 후 목록 다시 불러오기
-        try {
-          await _fetchDogProfiles();
-
-          // 현재 인덱스가 범위를 벗어나지 않도록 조정
-          if (dogProfiles.isNotEmpty &&
-              _currentPhotoIndex >= dogProfiles.length) {
-            setState(() {
-              _currentPhotoIndex = dogProfiles.length - 1;
-            });
-          }
-
-          // 성공 메시지 표시
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('강아지 프로필이 삭제되었습니다.')),
-            );
-          }
-        } catch (e) {
-          // 강아지가 모두 삭제되었거나 API가 404를 반환한 경우
-          setState(() {
-            dogProfiles = [];
-            _currentPhotoIndex = 0;
-          });
-
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                  content: Text('강아지 프로필이 삭제되었습니다. 더 이상 등록된 강아지가 없습니다.')),
-            );
-          }
-        }
-      } else {
-        // 오류 메시지 표시
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('삭제 실패: ${response.statusCode}')),
-          );
-        }
-      }
-    } catch (e) {
-      print('강아지 프로필 삭제 오류: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('강아지 프로필 삭제 중 오류가 발생했습니다.')),
-        );
-      }
     }
   }
 
@@ -390,8 +334,7 @@ class _MainPageState extends State<MainPage> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) =>
-                        EditDogProfilePage(username: widget.username),
+                    builder: (context) => Add_dog(username: widget.username),
                   ),
                 ).then((_) => _fetchDogProfilesSafely());
               },
