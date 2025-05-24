@@ -13,7 +13,7 @@ import 'package:dangq/pages/dog_profile/dog_profile.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:dangq/pages/main/weather_container.dart';
-import 'package:dangq/pages/dog_profile/add_dog_page.dart';
+import 'package:dangq/pages/dog_profile/add_dog_profile.dart';
 
 class MainPage extends StatefulWidget {
   final String username;
@@ -334,8 +334,7 @@ class _MainPageState extends State<MainPage> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) =>
-                        EditDogProfilePage(username: widget.username),
+                    builder: (context) => Add_dog(username: widget.username),
                   ),
                 ).then((_) => _fetchDogProfilesSafely());
               },
