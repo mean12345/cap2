@@ -308,7 +308,6 @@ class _WorkListState extends State<WorkList> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black, size: 35),
           onPressed: () {
-            //페이지 닫힐 때 현재 프로필 정보 전달달
             Navigator.pop(context, {
               'dogId': _selectedDogId,
               'dogName': _selectedDogName,
@@ -325,14 +324,20 @@ class _WorkListState extends State<WorkList> {
       ),
       body: isLoading
           ? Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                _buildCalendar(),
-                _buildMonthlyTotalSection(),
-                Expanded(
-                  child: _buildSelectedDayWorkouts(),
-                ),
-              ],
+          : SingleChildScrollView(
+              child: Column(
+                children: [
+                  _buildCalendar(),
+                  _buildMonthlyTotalSection(),
+                  Container(
+                    // 마지막 섹션의 높이를 명시적으로 설정
+                    constraints: BoxConstraints(
+                      minHeight: MediaQuery.of(context).size.height * 0.4,
+                    ),
+                    child: _buildSelectedDayWorkouts(),
+                  ),
+                ],
+              ),
             ),
     );
   }
@@ -413,7 +418,7 @@ class _WorkListState extends State<WorkList> {
                 Text(
                   title,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 11,
                     color: Colors.grey[600],
                   ),
                 ),
@@ -566,6 +571,7 @@ class _WorkListState extends State<WorkList> {
     );
   }
 
+  // _buildSelectedDayWorkouts 메서드를 수정
   Widget _buildSelectedDayWorkouts() {
     final dateOnly =
         DateTime(_selectedDay.year, _selectedDay.month, _selectedDay.day);
@@ -573,20 +579,20 @@ class _WorkListState extends State<WorkList> {
 
     if (selectedWorkouts.isEmpty) {
       return Center(
-        child: Text(
-          '이 날의 산책 기록이 없습니다.',
-          style: TextStyle(color: Colors.grey[600], fontSize: 16),
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: Text(
+            '이 날의 산책 기록이 없습니다.',
+            style: TextStyle(color: Colors.grey[600], fontSize: 16),
+          ),
         ),
       );
     }
 
-    return ListView.builder(
-      padding: EdgeInsets.all(16),
-      itemCount: selectedWorkouts.length,
-      itemBuilder: (context, index) {
-        final workout = selectedWorkouts[index];
+    return Column(
+      children: selectedWorkouts.map((workout) {
         return Padding(
-          padding: EdgeInsets.only(bottom: 16),
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: WorkListItem(
             walkTime: workout['walkTime'],
             distance: workout['distance'],
@@ -596,7 +602,7 @@ class _WorkListState extends State<WorkList> {
             onDelete: () => _showDeleteConfirmation(workout),
           ),
         );
-      },
+      }).toList(),
     );
   }
 
