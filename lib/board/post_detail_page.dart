@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:video_player/video_player.dart';
 
 class PostDetailPage extends StatefulWidget {
   final Map<String, dynamic> post;
@@ -21,33 +20,17 @@ class PostDetailPage extends StatefulWidget {
 class _PostDetailPageState extends State<PostDetailPage> {
   final TextEditingController _commentController = TextEditingController();
   List<dynamic> comments = [];
-  VideoPlayerController? _videoPlayerController;
-  bool _isIconVisible = true;
 
   @override
   void initState() {
     super.initState();
     _loadComments();
     _fetchProfileInfo(widget.username);
-
-    if (widget.post['video_url'] != null &&
-        widget.post['video_url'].isNotEmpty) {
-      print("Video URL: ${widget.post['video_url']}"); // URL 로그 확인
-      _videoPlayerController =
-          VideoPlayerController.network(widget.post['video_url'])
-            ..initialize().then((_) {
-              setState(() {}); // 초기화 완료 후 상태 업데이트
-              print("Video initialized");
-            }).catchError((error) {
-              print("Error initializing video player: $error");
-            });
-    }
   }
 
   @override
   void dispose() {
     _commentController.dispose();
-    _videoPlayerController?.dispose();
     super.dispose();
   }
 
@@ -88,6 +71,8 @@ class _PostDetailPageState extends State<PostDetailPage> {
       if (response.statusCode == 201) {
         _commentController.clear();
         _loadComments();
+        // 키보드 숨기기
+        FocusScope.of(context).unfocus();
       } else {
         throw Exception('Failed to add comment');
       }
@@ -108,7 +93,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body);
         return {
-          'nickname': jsonResponse['nickname'] ?? '닉네임을 불러오는 중...',
+          'nickname': jsonResponse['nickname'] ?? '',
           'profile_picture': jsonResponse['profile_picture'] ?? '',
         };
       } else {
@@ -123,20 +108,52 @@ class _PostDetailPageState extends State<PostDetailPage> {
     bool? confirm = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('댓글 삭제'),
-          content: const Text('정말 삭제하시겠습니까?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('취소'),
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(5),
+          ),
+          child: Container(
+            padding: EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(5),
             ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('삭제'),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '삭제 확인',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 25),
+                Text('이 댓글을 삭제하시겠습니까?'),
+                SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    TextButton(
+                      child: Text(
+                        '취소',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                      onPressed: () => Navigator.pop(context, false),
+                    ),
+                    SizedBox(width: 30),
+                    TextButton(
+                      child: Text(
+                        '삭제',
+                        style: TextStyle(color: Color(0xFF4DA374)),
+                      ),
+                      onPressed: () => Navigator.pop(context, true),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
+          ),
         );
       },
     );
@@ -228,21 +245,19 @@ class _PostDetailPageState extends State<PostDetailPage> {
                       builder: (context, snapshot) {
                         if (snapshot.connectionState ==
                             ConnectionState.waiting) {
-                          return const Text(
-                              '닉네임을 불러오는 중...'); // 닉네임을 불러오는 중일 때 표시되는 텍스트
+                          return const Text(''); // 로딩 중일 때는 빈 텍스트 표시
                         } else if (snapshot.hasError) {
                           return const Text('닉네임을 불러오는 데 실패했습니다.');
                         } else if (snapshot.hasData) {
                           final profileInfo = snapshot.data!;
                           return Text(
-                            profileInfo['nickname'] ??
-                                '닉네임을 불러오는 중...', // 닉네임을 불러온 경우
+                            profileInfo['nickname'] ?? '', // 닉네임이 없을 경우 빈 문자열 표시
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                             ),
                           );
                         } else {
-                          return const Text('닉네임을 불러오는 중...'); // 닉네임이 없을 경우 표시
+                          return const Text(''); // 데이터가 없을 경우 빈 텍스트 표시
                         }
                       },
                     ),
@@ -296,128 +311,6 @@ class _PostDetailPageState extends State<PostDetailPage> {
                       ],
                     ),
 
-                  // 비디오 처리
-                  if (widget.post['video_url'] != null &&
-                      widget.post['video_url'].isNotEmpty)
-                    Column(
-                      children: [
-                        Container(
-                          constraints: const BoxConstraints(maxHeight: 400),
-                          width: double.infinity,
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              // 비디오 플레이어
-                              _videoPlayerController != null &&
-                                      _videoPlayerController!
-                                          .value.isInitialized
-                                  ? GestureDetector(
-                                      onTap: () {
-                                        setState(() {
-                                          if (_videoPlayerController!
-                                              .value.isPlaying) {
-                                            _videoPlayerController!.pause();
-                                            _isIconVisible = true;
-                                          } else {
-                                            _videoPlayerController!.play();
-                                            _isIconVisible = false;
-                                            Future.delayed(
-                                                const Duration(seconds: 3), () {
-                                              if (mounted) {
-                                                setState(() {
-                                                  _isIconVisible = false;
-                                                });
-                                              }
-                                            });
-                                          }
-                                        });
-                                      },
-                                      child: SizedBox(
-                                        width: double.infinity,
-                                        height: double.infinity,
-                                        child: FittedBox(
-                                          fit: BoxFit.contain,
-                                          child: SizedBox(
-                                            width: _videoPlayerController!
-                                                .value.size.width,
-                                            height: _videoPlayerController!
-                                                .value.size.height,
-                                            child: VideoPlayer(
-                                                _videoPlayerController!),
-                                          ),
-                                        ),
-                                      ),
-                                    )
-                                  : const Center(
-                                      child: CircularProgressIndicator()),
-
-                              // 컨트롤 오버레이 (재생/일시정지 버튼)
-                              if (_isIconVisible)
-                                GestureDetector(
-                                  onTap: () {
-                                    setState(() {
-                                      if (_videoPlayerController!
-                                          .value.isPlaying) {
-                                        _videoPlayerController!.pause();
-                                      } else {
-                                        _videoPlayerController!.play();
-                                        Future.delayed(
-                                            const Duration(seconds: 3), () {
-                                          if (mounted) {
-                                            setState(() {
-                                              _isIconVisible = false;
-                                            });
-                                          }
-                                        });
-                                      }
-                                    });
-                                  },
-                                  child: Icon(
-                                    _videoPlayerController!.value.isPlaying
-                                        ? Icons.pause_circle_outline
-                                        : Icons.play_circle_outline,
-                                    size: 50,
-                                    color: Colors.white,
-                                  ),
-                                ),
-
-                              // 하단 컨트롤바
-                              Positioned(
-                                bottom: 0,
-                                left: 0,
-                                right: 0,
-                                child: Container(
-                                  padding: const EdgeInsets.only(bottom: 5),
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topCenter,
-                                      end: Alignment.bottomCenter,
-                                      colors: [
-                                        Colors.transparent,
-                                        Colors.black.withOpacity(0.5),
-                                      ],
-                                    ),
-                                  ),
-                                  child: VideoProgressIndicator(
-                                    _videoPlayerController!,
-                                    allowScrubbing: true,
-                                    colors: const VideoProgressColors(
-                                      playedColor: Colors.white,
-                                      bufferedColor: Colors.white24,
-                                      backgroundColor: Colors.grey,
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 10, vertical: 5),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16), // 하단 여백 추가
-                      ],
-                    ),
-
                   // 구분선
                   const Divider(height: 1),
                   // 댓글 목록
@@ -431,78 +324,103 @@ class _PostDetailPageState extends State<PostDetailPage> {
                       ),
                     ),
                   ),
-                  ...comments
-                      .map((comment) => ListTile(
-                            leading: FutureBuilder<Map<String, String>>(
-                              future: _fetchProfileInfo(comment[
-                                  'username']), // username에 맞는 프로필 이미지 URL과 닉네임을 반환받음
-                              builder: (context, snapshot) {
-                                if (snapshot.connectionState ==
-                                    ConnectionState.waiting) {
-                                  return const CircleAvatar(
-                                    child: CircularProgressIndicator(),
-                                  ); // 로딩 중에는 로딩 아이콘 표시
-                                } else if (snapshot.hasError) {
-                                  return const CircleAvatar(
-                                    child: Icon(Icons.person),
-                                  ); // 오류 발생 시 기본 아이콘 표시
-                                } else if (snapshot.hasData) {
-                                  final profileInfo = snapshot.data!;
-                                  // 프로필 이미지가 있으면 이미지로, 없으면 기본 아이콘 표시
-                                  return profileInfo['profile_picture'] !=
-                                              null &&
-                                          profileInfo['profile_picture']!
-                                              .isNotEmpty
-                                      ? CircleAvatar(
-                                          backgroundImage: NetworkImage(
-                                              profileInfo['profile_picture']!),
-                                        )
-                                      : const Icon(Icons
-                                          .person); // 프로필 이미지가 없을 경우 기본 아이콘 표시
-                                } else {
-                                  return const Icon(
-                                      Icons.person); // 프로필 이미지가 없을 경우 기본 아이콘 표시
-                                }
-                              },
-                            ),
-                            title: FutureBuilder<Map<String, String>>(
-                              future: _fetchProfileInfo(comment[
-                                  'username']), // username에 해당하는 닉네임을 가져옴
-                              builder: (context, snapshot) {
-                                if (snapshot.connectionState ==
-                                    ConnectionState.waiting) {
-                                  return const Text(
-                                      '닉네임을 불러오는 중...'); // 닉네임을 불러오는 중일 때 표시되는 텍스트
-                                } else if (snapshot.hasError) {
-                                  return const Text('닉네임을 불러오는 데 실패했습니다.');
-                                } else if (snapshot.hasData) {
-                                  final profileInfo = snapshot.data!;
-                                  return Text(
-                                    profileInfo['nickname'] ??
-                                        '닉네임을 불러오는 중...', // 닉네임을 불러온 경우
+                  ListView.separated(
+                    shrinkWrap: true,
+                    physics: NeverScrollableScrollPhysics(), // 부모 스크롤뷰를 따라가도록 설정
+                    itemCount: comments.length,
+                    separatorBuilder: (context, index) => Divider(
+                      color: Colors.grey[200],
+                      height: 1,
+                      thickness: 1,
+                    ),
+                    itemBuilder: (context, index) {
+                      final comment = comments[index];
+                      return ListTile(
+                        leading: FutureBuilder<Map<String, String>>(
+                          future: _fetchProfileInfo(comment[
+                              'username']), // username에 맞는 프로필 이미지 URL과 닉네임을 반환받음
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return const CircleAvatar(
+                                child: CircularProgressIndicator(),
+                              ); // 로딩 중에는 로딩 아이콘 표시
+                            } else if (snapshot.hasError) {
+                              return const CircleAvatar(
+                                child: Icon(Icons.person),
+                              ); // 오류 발생 시 기본 아이콘 표시
+                            } else if (snapshot.hasData) {
+                              final profileInfo = snapshot.data!;
+                              // 프로필 이미지가 있으면 이미지로, 없으면 기본 아이콘 표시
+                              return profileInfo['profile_picture'] !=
+                                          null &&
+                                      profileInfo['profile_picture']!
+                                          .isNotEmpty
+                                  ? CircleAvatar(
+                                      backgroundImage: NetworkImage(
+                                          profileInfo['profile_picture']!),
+                                    )
+                                  : const Icon(Icons
+                                      .person); // 프로필 이미지가 없을 경우 기본 아이콘 표시
+                            } else {
+                              return const Icon(
+                                  Icons.person); // 프로필 이미지가 없을 경우 기본 아이콘 표시
+                            }
+                          },
+                        ),
+                        title: FutureBuilder<Map<String, String>>(
+                          future: _fetchProfileInfo(comment[
+                              'username']), // username에 해당하는 닉네임을 가져옴
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return const Text(''); // 로딩 중일 때는 빈 텍스트 표시
+                            } else if (snapshot.hasError) {
+                              return const Text('닉네임을 불러오는 데 실패했습니다.');
+                            } else if (snapshot.hasData) {
+                              final profileInfo = snapshot.data!;
+                              return Row(
+                                children: [
+                                  Text(
+                                    profileInfo['nickname'] ?? '', // 닉네임이 없을 경우 빈 문자열 표시
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                     ),
-                                  );
-                                } else {
-                                  return const Text(
-                                      '닉네임을 불러오는 중...'); // 닉네임이 없을 경우 표시
-                                }
-                              },
-                            ),
-                            subtitle: Padding(
-                              padding: const EdgeInsets.only(top: 4),
-                              child: Text(comment['content']),
-                            ),
-                            trailing: comment['username'] == widget.username
-                                ? IconButton(
-                                    icon: const Icon(Icons.delete, size: 20),
-                                    onPressed: () =>
-                                        _deleteComment(comment['comment_id']),
-                                  )
-                                : null,
-                          ))
-                      .toList(),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    comment['created_at'] ?? '',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              );
+                            } else {
+                              return const Text(''); // 데이터가 없을 경우 빈 텍스트 표시
+                            }
+                          },
+                        ),
+                        subtitle: Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(comment['content']),
+                        ),
+                        trailing: comment['username'] == widget.username
+                            ? GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: () {
+                                  _deleteComment(comment['comment_id']);
+                                },
+                                child: const Padding(
+                                  padding: EdgeInsets.all(8.0),
+                                  child: Icon(Icons.delete, size: 20),
+                                ),
+                              )
+                            : null,
+                      );
+                    },
+                  ),
                 ],
               ),
             ),

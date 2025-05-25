@@ -202,23 +202,20 @@ class _FindPasswordState extends BaseLoginState<FindPassword> {
     final bool isKeyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
 
     return Scaffold(
-      resizeToAvoidBottomInset: true,
       backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: Colors.grey[100],
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        title: Text('비밀번호 찾기', style: TextStyle(color: Colors.black)),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      resizeToAvoidBottomInset: true,
       body: Stack(
         children: [
-          Positioned(
-            top: MediaQuery.of(context).size.height * 0.05,
-            left: 16,
-            child: GestureDetector(
-              onTap: () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const Login()),
-                );
-              },
-              child: Image.asset('assets/images/back.png'),
-            ),
-          ),
           Transform.translate(
             offset: Offset(0, isKeyboardVisible ? 100 : 30),
             child: Center(
