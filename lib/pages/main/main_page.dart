@@ -175,7 +175,7 @@ class _MainPageState extends State<MainPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: const Color.fromARGB(255, 202, 223, 228),
       appBar: _buildAppBar(context),
       body: _buildBody(context),
     );
@@ -238,23 +238,32 @@ class _MainPageState extends State<MainPage> {
 
   Widget _buildBody(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 18),
+      padding: const EdgeInsets.symmetric(horizontal: 0), // 패딩 제거
       child: Column(
         children: [
           const SizedBox(height: 20),
-          // 날씨 컨테이너 추가
-          WeatherContainer(
-            location: location,
-            temperature: temperature,
-            dustStatus: dustStatus,
-            uvStatus: uvStatus,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18),
+            child: WeatherContainer(
+              location: location,
+              temperature: temperature,
+              dustStatus: dustStatus,
+              uvStatus: uvStatus,
+            ),
           ),
           const SizedBox(height: 20),
           _buildDogProfileSection(),
-          const SizedBox(height: 20),
-          _buildIconButtonRow(),
-          const SizedBox(height: 20),
-          _buildWalkButton(),
+          const SizedBox(height: 30),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18),
+            child: Column(
+              children: [
+                _buildIconButtonRow(),
+                const SizedBox(height: 50),
+                _buildWalkButton(),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -337,7 +346,7 @@ class _MainPageState extends State<MainPage> {
                 ).then((_) => _fetchDogProfilesSafely());
               },
               child: CircleAvatar(
-                radius: 90,
+                radius: 70,
                 backgroundColor: Colors.grey[200],
                 child: const Icon(
                   Icons.add,
@@ -364,54 +373,63 @@ class _MainPageState extends State<MainPage> {
 
     final currentDog = dogProfiles[_currentPhotoIndex];
 
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
+    return Stack(
       children: [
-        Row(
+        Container(
+          width: MediaQuery.of(context).size.width,
+          height: 215,
+          color: Colors.white.withOpacity(0.5),
+        ),
+        Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: _prevDogProfile,
-            ),
-            Stack(
-              alignment: Alignment.bottomRight,
+            const SizedBox(height: 20), // 여백 추가
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                InkWell(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => DogProfile(
-                          username: widget.username,
-                        ),
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_ios),
+                  onPressed: _prevDogProfile,
+                ),
+                Stack(
+                  alignment: Alignment.bottomRight,
+                  children: [
+                    InkWell(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => DogProfile(
+                              username: widget.username,
+                            ),
+                          ),
+                        ).then((_) => _fetchDogProfilesSafely());
+                      },
+                      child: CircleAvatar(
+                        radius: 70,
+                        backgroundImage: currentDog['image_url'] != null
+                            ? NetworkImage(currentDog['image_url'])
+                            : null,
+                        child: currentDog['image_url'] == null
+                            ? const Icon(Icons.pets, size: 90)
+                            : null,
                       ),
-                    ).then((_) => _fetchDogProfilesSafely());
-                  },
-                  child: CircleAvatar(
-                    radius: 90,
-                    backgroundImage: currentDog['image_url'] != null
-                        ? NetworkImage(currentDog['image_url'])
-                        : null,
-                    child: currentDog['image_url'] == null
-                        ? const Icon(Icons.pets, size: 90)
-                        : null,
-                  ),
+                    ),
+                  ],
+                ),
+                IconButton(
+                  icon: const Icon(Icons.arrow_forward_ios),
+                  onPressed: _nextDogProfile,
                 ),
               ],
             ),
-            IconButton(
-              icon: const Icon(Icons.arrow_forward),
-              onPressed: _nextDogProfile,
+            const SizedBox(height: 10),
+            Text(
+              currentDog['dog_name'],
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
           ],
         ),
-        const SizedBox(height: 10),
-        Text(
-          currentDog['dog_name'],
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 20),
       ],
     );
   }
@@ -422,7 +440,7 @@ class _MainPageState extends State<MainPage> {
       children: [
         _buildIconButton("캘린더", Icons.calendar_month, AppColors.mainYellow),
         _buildIconButton("게시판", Icons.assignment, AppColors.mainPink),
-        _buildIconButton("리스트", Icons.list, AppColors.olivegreen),
+        _buildIconButton("리스트", Icons.list, AppColors.mainBlue),
       ],
     );
   }

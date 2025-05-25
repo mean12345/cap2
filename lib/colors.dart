@@ -9,7 +9,7 @@ class AppColors {
   static const Color green = Color(0xFF4DA374);
   static const Color limegreen = Color(0xFFCAE078);
   static const Color workDSTGray = Color(0xFF9B9B9B);
-  static const Color mainYellow = Color(0xFFFFFCB2);
-  static const Color mainPink = Color(0xFFF6D5D5);
-  static const Color mainBlue = Color(0xFFA8EDE7);
+  static const Color mainYellow = Color.fromARGB(224, 255, 252, 178);
+  static const Color mainPink = Color.fromARGB(218, 246, 213, 213);
+  static const Color mainBlue = Color.fromARGB(216, 198, 233, 241);
 }

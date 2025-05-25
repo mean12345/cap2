@@ -23,84 +23,78 @@ class WeatherContainer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Container(
-          width: double.infinity,
-          // 컨테이너 스타일 설정 (하늘색 배경, 둥근 모서리)
-          decoration: BoxDecoration(
-            color: const Color(0xFFBEE3F8),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color.fromARGB(255, 202, 223, 228),
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 위치 정보 표시 섹션
+          Row(
             children: [
-              // 위치 정보 표시 섹션
-              Row(
+              const Icon(Icons.location_on, color: Colors.red),
+              const SizedBox(width: 4),
+              Text(
+                location,
+                style: const TextStyle(fontSize: 16),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // 날씨 상태 표시 섹션
+          Row(
+            children: [
+              // 온도 표시
+              Text(
+                '$temperature°C',
+                style: const TextStyle(
+                  fontSize: 40,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Spacer(),
+              // 미세먼지 상태 표시
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.location_on, color: Colors.red),
-                  const SizedBox(width: 4),
+                  const Text('미세먼지', style: TextStyle(fontSize: 14)),
                   Text(
-                    location,
-                    style: const TextStyle(fontSize: 16),
+                    dustStatus,
+                    style: TextStyle(
+                      fontSize: 14,
+                      // 미세먼지 상태가 '좋음' 또는 '보통'이면 파란색, 그 외는 빨간색
+                      color: (dustStatus == '좋음' || dustStatus == '보통')
+                          ? Colors.blue
+                          : Colors.red,
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              // 날씨 상태 표시 섹션
-              Row(
+              const SizedBox(width: 24),
+              // 자외선 상태 표시
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 온도 표시
+                  const Text('자외선', style: TextStyle(fontSize: 14)),
                   Text(
-                    '$temperature°C',
-                    style: const TextStyle(
-                      fontSize: 40,
-                      fontWeight: FontWeight.bold,
+                    uvStatus,
+                    style: TextStyle(
+                      fontSize: 14,
+                      // 자외선 상태가 '좋음' 또는 '보통'이면 파란색, 그 외는 빨간색
+                      color: (uvStatus == '좋음' || uvStatus == '보통')
+                          ? Colors.blue
+                          : Colors.red,
                     ),
-                  ),
-                  const Spacer(),
-                  // 미세먼지 상태 표시
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('미세먼지', style: TextStyle(fontSize: 14)),
-                      Text(
-                        dustStatus,
-                        style: TextStyle(
-                          fontSize: 14,
-                          // 미세먼지 상태가 '좋음' 또는 '보통'이면 파란색, 그 외는 빨간색
-                          color: (dustStatus == '좋음' || dustStatus == '보통')
-                              ? Colors.blue
-                              : Colors.red,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(width: 24),
-                  // 자외선 상태 표시
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('자외선', style: TextStyle(fontSize: 14)),
-                      Text(
-                        uvStatus,
-                        style: TextStyle(
-                          fontSize: 14,
-                          // 자외선 상태가 '좋음' 또는 '보통'이면 파란색, 그 외는 빨간색
-                          color: (uvStatus == '좋음' || uvStatus == '보통')
-                              ? Colors.blue
-                              : Colors.red,
-                        ),
-                      ),
-                    ],
                   ),
                 ],
               ),
             ],
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
