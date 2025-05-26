@@ -168,6 +168,12 @@ class MarkerManager {
   Future<void> loadMarkers() async {
     try {
       debugPrint('마커 로드 시작');
+
+      if (mapController == null) {
+        debugPrint('MapController가 초기화되지 않았습니다.');
+        return;
+      }
+
       await mapController.clearOverlays();
       List<Map<String, dynamic>> markers = await fetchMarkersFromDB();
       debugPrint('DB에서 마커 불러오기 완료: ${markers.length}개 마커');
@@ -180,6 +186,9 @@ class MarkerManager {
 
         String markerType = marker['markerType'].toString();
         String markerName = marker['markerName'].toString();
+
+        String marker_Type = marker['markerType'].toString();
+        String marker_Name = 'marker_${DateTime.now().millisecondsSinceEpoch}';
 
         String imageAsset = markerType == 'bad'
             ? 'assets/images/dangerous_pin.png'
@@ -204,6 +213,16 @@ class MarkerManager {
         nMarker.setOnTapListener((NMarker clickedMarker) async {
           try {
             showDeleteConfirmationDialog(markerName, clickedMarker.info.id);
+
+            double latitude = clickedMarker.position.latitude;
+            double longitude = clickedMarker.position.longitude;
+
+            String? fetchedMarkerName =
+                await fetchMarkerName(latitude, longitude);
+            if (fetchedMarkerName != null) {
+              showDeleteConfirmationDialog(
+                  fetchedMarkerName, clickedMarker.info.id);
+            }
           } catch (e) {
             debugPrint('마커 클릭 처리 중 오류: $e');
           }
