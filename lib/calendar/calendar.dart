@@ -576,55 +576,67 @@ class _CalendarPageState extends State<CalendarPage> {
                                               onPressed: () {
                                                 showDialog(
                                                   context: context,
-                                                  builder: (context) =>
-                                                      AlertDialog(
-                                                    title: Text('일정 삭제'),
-                                                    content:
-                                                        Text('이 일정을 삭제하시겠습니까?'),
-                                                    actions: [
-                                                      TextButton(
-                                                        child: Text('취소'),
-                                                        onPressed: () =>
-                                                            Navigator.pop(
-                                                                context),
+                                                  builder: (context) => Dialog(
+                                                    shape: RoundedRectangleBorder(
+                                                      borderRadius: BorderRadius.circular(5),
+                                                    ),
+                                                    child: Container(
+                                                      padding: EdgeInsets.all(20),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.white,
+                                                        borderRadius: BorderRadius.circular(5),
                                                       ),
-                                                      TextButton(
-                                                        child: Text('삭제'),
-                                                        onPressed: () {
-                                                          setState(() {
-                                                            _deleteEvent(event
-                                                                    .eventId)
-                                                                .then((_) {
-                                                              final eventDate =
-                                                                  DateTime(
-                                                                event.startDate
-                                                                    .year,
-                                                                event.startDate
-                                                                    .month,
-                                                                event.startDate
-                                                                    .day,
-                                                              );
-                                                              _events[eventDate]
-                                                                  ?.remove(
-                                                                      event);
-                                                              if (_events[eventDate]
-                                                                      ?.isEmpty ??
-                                                                  false) {
-                                                                _events.remove(
-                                                                    eventDate);
-                                                              }
-                                                            });
-                                                            Navigator.pop(
-                                                                context);
-                                                          });
-                                                        },
-                                                        style: TextButton
-                                                            .styleFrom(
-                                                          foregroundColor:
-                                                              Colors.red,
-                                                        ),
-                                                      )
-                                                    ],
+                                                      child: Column(
+                                                        mainAxisSize: MainAxisSize.min,
+                                                        children: [
+                                                          Text(
+                                                            '삭제 확인',
+                                                            style: TextStyle(
+                                                              fontSize: 18,
+                                                              fontWeight: FontWeight.bold,
+                                                            ),
+                                                          ),
+                                                          SizedBox(height: 25),
+                                                          Text('이 일정을 삭제하시겠습니까?'),
+                                                          SizedBox(height: 20),
+                                                          Row(
+                                                            mainAxisAlignment: MainAxisAlignment.center,
+                                                            children: [
+                                                              TextButton(
+                                                                child: Text(
+                                                                  '취소',
+                                                                  style: TextStyle(color: Colors.grey),
+                                                                ),
+                                                                onPressed: () => Navigator.pop(context),
+                                                              ),
+                                                              SizedBox(width: 30),
+                                                              TextButton(
+                                                                child: Text(
+                                                                  '삭제',
+                                                                  style: TextStyle(color: Color.fromARGB(255, 124, 172, 117)),
+                                                                ),
+                                                                onPressed: () {
+                                                                  setState(() {
+                                                                    _deleteEvent(event.eventId).then((_) {
+                                                                      final eventDate = DateTime(
+                                                                        event.startDate.year,
+                                                                        event.startDate.month,
+                                                                        event.startDate.day,
+                                                                      );
+                                                                      _events[eventDate]?.remove(event);
+                                                                      if (_events[eventDate]?.isEmpty ?? false) {
+                                                                        _events.remove(eventDate);
+                                                                      }
+                                                                    });
+                                                                    Navigator.pop(context);
+                                                                  });
+                                                                },
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
                                                   ),
                                                 );
                                               },
