@@ -7,8 +7,10 @@ import 'package:kpostal/kpostal.dart';
 
 class AddPlaceDialog extends StatefulWidget {
   final String username;
+  final Function(String markerName, double latitude, double longitude,
+      String markerType)? onMarkerAdded;
 
-  const AddPlaceDialog({super.key, required this.username});
+  const AddPlaceDialog({super.key, required this.username, this.onMarkerAdded});
 
   @override
   _AddPlaceDialogState createState() => _AddPlaceDialogState();
@@ -25,25 +27,44 @@ class _AddPlaceDialogState extends State<AddPlaceDialog> {
   void _saveMarker() async {
     // markerName 생성
     String markerName = 'marker_${DateTime.now().millisecondsSinceEpoch}';
-    String markerType = isDangerous
-        ? 'bad'
-        : isFavorite
-            ? 'good'
-            : 'neutral';
+    String? markerType;
+    String imageAsset = '';
+    String markerText = '';
+    Color textColor;
 
-    debugPrint('Saving marker: $markerName, Type: $markerType');
-
-    // latitude와 longitude가 null인 경우 예외 처리
-    if (latitude == null || longitude == null) {
-      debugPrint('Error: Latitude or Longitude is null');
-      // ScaffoldMessenger.showSnackBar로 SnackBar 표시
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('위치 정보가 올바르지 않습니다.')),
-      );
-      return; // 위치 정보가 없으면 함수를 종료
+    if (isDangerous) {
+      markerType = 'bad';
+      imageAsset = 'assets/images/dangerous_pin.png';
+      markerText = '위험한 곳';
+      textColor = const Color(0xFFFF0000);
+    } else if (isFavorite) {
+      markerType = 'good';
+      imageAsset = 'assets/images/good_pin.png';
+      markerText = '좋아하는 곳';
+      textColor = const Color(0xFF00FF00);
+    } else {
+      markerType = null;
+      imageAsset = '';
+      markerText = '';
+      textColor = Colors.black;
     }
 
-    // DB에 마커 저장
+    if (markerType == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('장소 종류를 선택해주세요'), duration: Duration(seconds: 2)),
+      );
+      return;
+    }
+
+    if (latitude == null || longitude == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('위치 정보가 올바르지 않습니다.'), duration: Duration(seconds: 2)),
+      );
+      return;
+    }
+
     int result = await _saveMarkerToDB(
       widget.username,
       latitude!,
@@ -52,15 +73,19 @@ class _AddPlaceDialogState extends State<AddPlaceDialog> {
       markerName,
     );
 
-    // 결과 로그 및 SnackBar 표시
-    debugPrint('Save result: $result');
-
     if (result == 1) {
-      // 팝업 닫기
+      if (widget.onMarkerAdded != null) {
+        // markerType, imageAsset, markerText, textColor 모두 전달
+        widget.onMarkerAdded!(
+          markerName,
+          latitude!,
+          longitude!,
+          markerType,
+        );
+      }
       Navigator.of(context).pop();
     }
 
-    // SnackBar 표시
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(result == 1
@@ -73,7 +98,6 @@ class _AddPlaceDialogState extends State<AddPlaceDialog> {
   Future<int> _saveMarkerToDB(String userName, double latitude,
       double longitude, String markerType, String markerName) async {
     final String baseUrl = dotenv.get('BASE_URL');
-    debugPrint('Base URL: $baseUrl');
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/markers'),
@@ -86,17 +110,13 @@ class _AddPlaceDialogState extends State<AddPlaceDialog> {
           'marker_name': markerName,
         }),
       );
-
-      debugPrint('Response status: ${response.statusCode}');
       return response.statusCode == 201 ? 1 : -1;
     } catch (e) {
-      debugPrint('Error saving marker: $e');
       return -1;
     }
   }
 
   void _onDangerousAreaChanged(bool? value) {
-    debugPrint('Dangerous area changed: $value');
     setState(() {
       isFavorite = false;
       isDangerous = value ?? false;
@@ -104,7 +124,6 @@ class _AddPlaceDialogState extends State<AddPlaceDialog> {
   }
 
   void _onFavoriteAreaChanged(bool? value) {
-    debugPrint('Favorite area changed: $value');
     setState(() {
       isDangerous = false;
       isFavorite = value ?? false;
@@ -283,8 +302,8 @@ class _AddPlaceDialogState extends State<AddPlaceDialog> {
                             setState(() {
                               postCode = result.postCode ?? '';
                               address = result.address ?? '';
-                              latitude = result.latitude ?? 0.0;
-                              longitude = result.longitude ?? 0.0;
+                              latitude = result.latitude;
+                              longitude = result.longitude;
                             });
                           },
                         ),
@@ -360,11 +379,16 @@ class _AddPlaceDialogState extends State<AddPlaceDialog> {
         ),
       ),
       onPressed: () {
-        if (isDangerous || isFavorite) {
-          _saveMarker();
-        } else {
-          print('지역을 선택해 주세요');
+        if (address.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('주소를 입력해주세요'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+          return;
         }
+        _saveMarker();
       },
       child: Text(
         '저장하기',

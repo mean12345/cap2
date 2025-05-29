@@ -127,6 +127,7 @@ class _WorkDSTState extends State<WorkDST> {
         //네이버 지도
         NaverMap(
           onMapReady: (controller) {
+            controller.setLocationTrackingMode(NLocationTrackingMode.follow);
             _mapController = controller;
             _markerManager = MarkerManager(
               mapController: controller,
@@ -278,7 +279,43 @@ class _WorkDSTState extends State<WorkDST> {
                       showDialog(
                         context: context,
                         builder: (BuildContext context) {
-                          return AddPlaceDialog(username: widget.username);
+                          return AddPlaceDialog(
+                            username: widget.username,
+                            onMarkerAdded: (markerName, latitude, longitude,
+                                markerType) async {
+                              String imageAsset = markerType == 'bad'
+                                  ? 'assets/images/dangerous_pin.png'
+                                  : 'assets/images/good_pin.png';
+                              String markerText =
+                                  markerType == 'bad' ? '위험한 곳' : '좋아하는 곳';
+                              Color textColor = markerType == 'bad'
+                                  ? const Color(0xFFFF0000)
+                                  : const Color(0xFF00FF00);
+
+                              final marker = NMarker(
+                                id: markerName,
+                                position: NLatLng(latitude, longitude),
+                                icon: NOverlayImage.fromAssetImage(imageAsset),
+                                size: Size(50.0, 60.0),
+                                caption: NOverlayCaption(
+                                  text: markerText,
+                                  color: textColor,
+                                ),
+                              );
+
+                              marker.setOnTapListener(
+                                  (NMarker clickedMarker) async {
+                                try {
+                                  showDeleteConfirmationDialog(
+                                      markerName, clickedMarker.info.id);
+                                } catch (e) {
+                                  debugPrint('마커 클릭 처리 중 오류: $e');
+                                }
+                              });
+
+                              await _mapController.addOverlay(marker);
+                            },
+                          );
                         },
                       );
                     },
