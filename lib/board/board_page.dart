@@ -275,233 +275,224 @@ class _BoardPageState extends State<BoardPage> {
           const Divider(
             height: 1,
             thickness: 1,
-            color: Color(0xFFB2D8C5), // 연한 초록색 계열로 구분선
+            color: Colors.grey, // grey[200]에 해당하는 색상
           ),
           Expanded(
-            child: ListView.separated(
-              itemCount: posts.length,
-              separatorBuilder: (context, index) => const Divider(
-                height: 1,
-                thickness: 1,
-                color: Color(0xFFB2D8C5), // 연한 초록색 계열로 구분선
-              ),
-              itemBuilder: (context, index) {
-                final post = posts[index];
-                if (post['video_url'] != null &&
-                    post['video_url'].toString().isNotEmpty) {
-                  if (_videoController == null ||
-                      _videoController!.dataSource != post['video_url']) {
-                    _initializeVideoController(post['video_url']);
-                  }
-                }
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      InkWell(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => PostDetailPage(
-                                post: post,
-                                username: widget.username,
-                              ),
-                            ),
-                          );
-                        },
+            child: posts.isEmpty
+                ? const Center(child: Text('게시글이 없습니다.'))
+                : ListView.separated(
+                    itemCount: posts.length + 1, // 마지막 구분선을 위해 +1
+                    separatorBuilder: (context, index) => const Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: Color(0xFFEEEEEE), // grey[200]에 해당하는 색상
+                    ),
+                    itemBuilder: (context, index) {
+                      if (index == posts.length) {
+                        return const SizedBox.shrink(); // 마지막 구분선을 위한 빈 위젯
+                      }
+                      final post = posts[index];
+                      if (post['video_url'] != null &&
+                          post['video_url'].toString().isNotEmpty) {
+                        if (_videoController == null ||
+                            _videoController!.dataSource != post['video_url']) {
+                          _initializeVideoController(post['video_url']);
+                        }
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 0),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            ListTile(
-                              leading: FutureBuilder<Map<String, String>>(
-                                future: _fetchProfileInfo(post[
-                                    'username']), // username에 맞는 프로필 이미지 URL과 닉네임을 반환받음
-                                builder: (context, snapshot) {
-                                  if (snapshot.connectionState ==
-                                      ConnectionState.waiting) {
-                                    return const CircleAvatar(
-                                      child: CircularProgressIndicator(),
-                                    ); // 로딩 중에는 로딩 아이콘 표시
-                                  } else if (snapshot.hasError) {
-                                    return const CircleAvatar(
-                                      child: Icon(Icons.person),
-                                    ); // 오류 발생 시 기본 아이콘 표시
-                                  } else if (snapshot.hasData) {
-                                    final profileInfo = snapshot.data!;
-                                    // 프로필 이미지가 있으면 이미지로, 없으면 기본 아이콘 표시
-                                    return profileInfo['profile_picture'] != null &&
-                                            profileInfo['profile_picture']!.isNotEmpty
-                                        ? CircleAvatar(
-                                            backgroundImage: NetworkImage(
-                                                profileInfo['profile_picture']!),
-                                          )
-                                        : const Icon(
-                                            Icons.person); // 프로필 이미지가 없을 경우 기본 아이콘 표시
-                                  } else {
-                                    return const Icon(
-                                        Icons.person); // 프로필 이미지가 없을 경우 기본 아이콘 표시
-                                  }
-                                },
-                              ),
-                              title: FutureBuilder<Map<String, String>>(
-                                future: _fetchProfileInfo(
-                                    post['username']), // username에 해당하는 닉네임을 가져옴
-                                builder: (context, snapshot) {
-                                  if (snapshot.connectionState ==
-                                      ConnectionState.waiting) {
-                                    return const Text(''); // 로딩 중일 때는 빈 텍스트 표시
-                                  } else if (snapshot.hasError) {
-                                    return const Text('닉네임을 불러오는 데 실패했습니다.');
-                                  } else if (snapshot.hasData) {
-                                    final profileInfo = snapshot.data!;
-                                    return Text(
-                                      profileInfo['nickname'] ?? '', // 닉네임이 없을 경우 빈 문자열 표시
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    );
-                                  } else {
-                                    return const Text(''); // 데이터가 없을 경우 빈 텍스트 표시
-                                  }
-                                },
-                              ),
-                              subtitle: Text(post['created_at']),
-                              trailing: widget.username == post['username']
-                                  ? PopupMenuButton<String>(
-                                      icon: const Icon(Icons.more_vert),
-                                      color: Colors.white,
-                                      onSelected: (String choice) {
-                                        if (choice == 'edit') {
-                                          // TODO: 게시글 수정 기능 구현
-                                          print('게시글 수정: ${post['post_id']}');
-                                        } else if (choice == 'delete') {
-                                          _deletePost(post['post_id'], post['username']); // 삭제 기능 호출
+                            InkWell(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => PostDetailPage(
+                                      post: post,
+                                      username: widget.username,
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  ListTile(
+                                    leading: FutureBuilder<Map<String, String>>(
+                                      future: _fetchProfileInfo(post[
+                                          'username']), // username에 맞는 프로필 이미지 URL과 닉네임을 반환받음
+                                      builder: (context, snapshot) {
+                                        if (snapshot.connectionState ==
+                                            ConnectionState.waiting) {
+                                          return const CircleAvatar(
+                                            child: CircularProgressIndicator(),
+                                          ); // 로딩 중에는 로딩 아이콘 표시
+                                        } else if (snapshot.hasError) {
+                                          return const CircleAvatar(
+                                            child: Icon(Icons.person),
+                                          ); // 오류 발생 시 기본 아이콘 표시
+                                        } else if (snapshot.hasData) {
+                                          final profileInfo = snapshot.data!;
+                                          // 프로필 이미지가 있으면 이미지로, 없으면 기본 아이콘 표시
+                                          return profileInfo['profile_picture'] != null &&
+                                                  profileInfo['profile_picture']!.isNotEmpty
+                                              ? CircleAvatar(
+                                                  backgroundImage: NetworkImage(
+                                                      profileInfo['profile_picture']!),
+                                                )
+                                              : const Icon(
+                                                  Icons.person); // 프로필 이미지가 없을 경우 기본 아이콘 표시
+                                        } else {
+                                          return const Icon(
+                                              Icons.person); // 프로필 이미지가 없을 경우 기본 아이콘 표시
                                         }
                                       },
-                                      itemBuilder: (BuildContext context) {
-                                        return [
-                                          PopupMenuItem<String>(
-                                            value: 'edit',
-                                            padding: EdgeInsets.symmetric(horizontal: 0.5), // 좌우 패딩 조절
-                                            child: Center(child: Text('수정하기')), // 가운데 정렬
-                                          ),
-                                          const PopupMenuDivider(), // 구분선 추가
-                                          PopupMenuItem<String>(
-                                            value: 'delete',
-                                            padding: EdgeInsets.symmetric(horizontal: 0.5), // 좌우 패딩 조절
-                                            child: Center(child: Text('삭제하기', style: TextStyle(color: Colors.red))), // 가운데 정렬
-                                          ),
-                                        ];
+                                    ),
+                                    title: FutureBuilder<Map<String, String>>(
+                                      future: _fetchProfileInfo(
+                                          post['username']), // username에 해당하는 닉네임을 가져옴
+                                      builder: (context, snapshot) {
+                                        if (snapshot.connectionState ==
+                                            ConnectionState.waiting) {
+                                          return const Text(''); // 로딩 중일 때는 빈 텍스트 표시
+                                        } else if (snapshot.hasError) {
+                                          return const Text('닉네임을 불러오는 데 실패했습니다.');
+                                        } else if (snapshot.hasData) {
+                                          final profileInfo = snapshot.data!;
+                                          return Text(
+                                            profileInfo['nickname'] ?? '', // 닉네임이 없을 경우 빈 문자열 표시
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          );
+                                        } else {
+                                          return const Text(''); // 데이터가 없을 경우 빈 텍스트 표시
+                                        }
                                       },
-                                    )
-                                  : null,
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                              child: Text(
-                                post['content'],
-                                style: const TextStyle(fontSize: 16),
-                                textAlign: TextAlign.left,
-                              ),
-                            ),
-                            if (post['video_url'] != null &&
-                                post['video_url'].toString().isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 16),
-                                child: Container(
-                                  constraints: const BoxConstraints(maxHeight: 300),
-                                  child: Stack(
-                                    alignment: Alignment.center,
-                                    children: [
-                                      _videoController != null &&
-                                              _videoController!.value.isInitialized
-                                          ? ClipRRect(
-                                              borderRadius: BorderRadius.circular(8),
-                                              child: SizedBox(
-                                                width: double.infinity,
-                                                height: 300,
-                                                child: FittedBox(
-                                                  fit: BoxFit.cover,
-                                                  child: SizedBox(
-                                                    width: _videoController!
-                                                        .value.size.width,
-                                                    height: _videoController!
-                                                        .value.size.height,
-                                                    child: VideoPlayer(_videoController!),
-                                                  ),
-                                                ),
+                                    ),
+                                    subtitle: Text(post['created_at']),
+                                    trailing: widget.username == post['username']
+                                        ? Container(
+                                            width: 100,  // 적절한 너비 값
+                                            alignment: Alignment.centerRight,
+                                            child: Padding(
+                                              padding: const EdgeInsets.only(bottom: 8.0),
+                                              child: IconButton(
+                                                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                                onPressed: () => _deletePost(post['post_id'], post['username']),
                                               ),
-                                            )
-                                          : const Center(
-                                              child: CircularProgressIndicator()),
-                                      const Icon(
-                                        Icons.play_circle_outline,
-                                        size: 50,
-                                        color: Colors.white,
-                                      ),
-                                    ],
+                                            ),
+                                          )
+                                        : null,
                                   ),
-                                ),
-                              )
-                            else if (post['image_url'] != null &&
-                                post['image_url'].toString().isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 16),
-                                child: Container(
-                                  constraints: const BoxConstraints(maxHeight: 300),
-                                  child: Image.network(
-                                    post['image_url'],
-                                    fit: BoxFit.contain,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      print('Image error: $error');
-                                      return const Center(
-                                          child: Text('이미지를 불러올 수 없습니다.'));
-                                    },
-                                    loadingBuilder: (context, child, loadingProgress) {
-                                      if (loadingProgress == null) return child;
-                                      return Center(
-                                        child: CircularProgressIndicator(
-                                          value: loadingProgress.expectedTotalBytes !=
-                                                  null
-                                              ? loadingProgress.cumulativeBytesLoaded /
-                                                  loadingProgress.expectedTotalBytes!
-                                              : null,
-                                        ),
-                                      );
-                                    },
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                                    child: Text(
+                                      post['content'],
+                                      style: const TextStyle(fontSize: 16),
+                                      textAlign: TextAlign.left,
+                                    ),
                                   ),
-                                ),
-                              ),
-                            Padding(
-                              padding: const EdgeInsets.only(right: 16, bottom: 8),
-                              child: Align(
-                                alignment: Alignment.bottomRight,
-                                child: IconButton(
-                                  icon: const Icon(Icons.comment),
-                                  onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => PostDetailPage(
-                                          post: post,
-                                          username: widget.username,
+                                  if (post['video_url'] != null &&
+                                      post['video_url'].toString().isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                                      child: Container(
+                                        constraints: const BoxConstraints(maxHeight: 300),
+                                        child: Stack(
+                                          alignment: Alignment.center,
+                                          children: [
+                                            _videoController != null &&
+                                                    _videoController!.value.isInitialized
+                                                ? ClipRRect(
+                                                    borderRadius: BorderRadius.circular(8),
+                                                    child: SizedBox(
+                                                      width: double.infinity,
+                                                      height: 300,
+                                                      child: FittedBox(
+                                                        fit: BoxFit.cover,
+                                                        child: SizedBox(
+                                                          width: _videoController!
+                                                              .value.size.width,
+                                                          height: _videoController!
+                                                              .value.size.height,
+                                                          child: VideoPlayer(_videoController!),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  )
+                                                : const Center(
+                                                    child: CircularProgressIndicator()),
+                                            const Icon(
+                                              Icons.play_circle_outline,
+                                              size: 50,
+                                              color: Colors.white,
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                    ).then((_) => _loadPosts());
-                                  },
-                                ),
+                                    )
+                                  else if (post['image_url'] != null &&
+                                      post['image_url'].toString().isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                                      child: Image.network(
+                                        post['image_url'],
+                                        fit: BoxFit.contain,
+                                        errorBuilder: (context, error, stackTrace) {
+                                          print('Image error: $error');
+                                          return const Center(
+                                              child: Text('이미지를 불러올 수 없습니다.'));
+                                        },
+                                        loadingBuilder: (context, child, loadingProgress) {
+                                          if (loadingProgress == null) return child;
+                                          return Center(
+                                            child: CircularProgressIndicator(
+                                              value: loadingProgress.expectedTotalBytes !=
+                                                      null
+                                                  ? loadingProgress.cumulativeBytesLoaded /
+                                                      loadingProgress.expectedTotalBytes!
+                                                  : null,
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 16, bottom: 8),
+                                    child: Align(
+                                      alignment: Alignment.bottomRight,
+                                      child: IconButton(
+                                        icon: const Icon(Icons.comment),
+                                        onPressed: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) => PostDetailPage(
+                                                post: post,
+                                                username: widget.username,
+                                              ),
+                                            ),
+                                          ).then((_) => _loadPosts());
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
                         ),
-                      ),
-                    ],
+                      );
+                    },
                   ),
-                );
-              },
-            ),
+          ),
+          const Divider(
+            height: 1,
+            thickness: 1,
+            color: Color(0xFFEEEEEE), // grey[200]에 해당하는 색상
           ),
         ],
       ),
