@@ -69,6 +69,55 @@ router.post('/', async (req, res) => {
     }
 });
 
+// 강아지 프로필 수정
+router.put('/update/:dog_id', async (req, res) => {
+    const { dog_id } = req.params;
+    const { dog_name, image_url } = req.body;
+
+    if (!dog_name && !image_url) {
+        return res.status(400).json({ message: '수정할 dog_name 또는 image_url 중 하나는 필요합니다.' });
+    }
+
+    try {
+        // 먼저 해당 dog_id가 존재하는지 확인
+        const [dogRows] = await db.promise().query(
+            'SELECT * FROM dogs WHERE dog_id = ?',
+            [dog_id]
+        );
+
+        if (dogRows.length === 0) {
+            return res.status(404).json({ message: '강아지 프로필을 찾을 수 없습니다.' });
+        }
+
+        // 변경할 필드를 동적으로 구성
+        const fields = [];
+        const values = [];
+
+        if (dog_name) {
+            fields.push('dog_name = ?');
+            values.push(dog_name);
+        }
+        if (image_url) {
+            fields.push('image_url = ?');
+            values.push(image_url);
+        }
+
+        values.push(dog_id); // WHERE절에 쓸 dog_id
+
+        const updateQuery = `UPDATE dogs SET ${fields.join(', ')} WHERE dog_id = ?`;
+
+        const [result] = await db.promise().query(updateQuery, values);
+
+        res.status(200).json({
+            message: '강아지 프로필이 성공적으로 수정되었습니다.',
+            updatedFields: { dog_name, image_url }
+        });
+    } catch (error) {
+        console.error('강아지 수정 오류:', error);
+        res.status(500).json({ message: '강아지 수정에 실패했습니다.' });
+    }
+});
+
 
 router.post('/dogs_profile', dogsstorage.single('image'), (req, res) => {
     if (!req.file) {
@@ -141,7 +190,6 @@ router.get('/get_dogs', async (req, res) => {
         res.status(500).send({ message: '서버 오류가 발생했습니다.' });
     }
 });
-
 
 
 router.delete('/:dog_id', (req, res) => {
