@@ -78,46 +78,55 @@ class _SettingsPageState extends State<SettingsPage> {
     bool? confirm = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: AppColors.background,
+        return Dialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(5.0),
+            borderRadius: BorderRadius.circular(5),
           ),
-          title: const Text(
-            '로그아웃',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.black,
+          child: Container(
+            padding: EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(5),
             ),
-          ),
-          content: const Text(
-            '정말 로그아웃 하시겠습니까?',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.black),
-          ),
-          actionsAlignment: MainAxisAlignment.center,
-          actions: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text(
-                    '취소',
-                    style: TextStyle(color: AppColors.green),
+                Text(
+                  '로그아웃',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(width: 35),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(true),
-                  child: const Text(
-                    '로그아웃',
-                    style: TextStyle(color: Colors.red),
-                  ),
+                SizedBox(height: 25),
+                Text(
+                  '정말 로그아웃 하시겠습니까?',
+                  style: TextStyle(fontSize: 16),
+                ),
+                SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    TextButton(
+                      child: Text(
+                        '취소',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                      onPressed: () => Navigator.pop(context, false),
+                    ),
+                    SizedBox(width: 30),
+                    TextButton(
+                      child: Text(
+                        '로그아웃',
+                        style: TextStyle(color: Color(0xFF4DA374)),
+                      ),
+                      onPressed: () => Navigator.pop(context, true),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
+          ),
         );
       },
     );
@@ -135,44 +144,56 @@ class _SettingsPageState extends State<SettingsPage> {
     bool? confirm = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: AppColors.background,
+        return Dialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(5),
           ),
-          title: const Text(
-            '계정 삭제',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.black),
-          ),
-          content: const Text(
-            '정말 계정을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.black),
-          ),
-          actionsAlignment: MainAxisAlignment.center,
-          actions: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+          child: Container(
+            padding: EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(5),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text(
-                    '취소',
-                    style: TextStyle(color: AppColors.olivegreen),
+                Text(
+                  '계정 삭제',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(width: 35),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(true),
-                  child: const Text(
-                    '삭제',
-                    style: TextStyle(color: Colors.red),
-                  ),
+                SizedBox(height: 25),
+                Text(
+                  '정말 계정을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.',
+                  style: TextStyle(fontSize: 16),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    TextButton(
+                      child: Text(
+                        '취소',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                      onPressed: () => Navigator.pop(context, false),
+                    ),
+                    SizedBox(width: 30),
+                    TextButton(
+                      child: Text(
+                        '삭제',
+                        style: TextStyle(color: Color(0xFF4DA374)),
+                      ),
+                      onPressed: () => Navigator.pop(context, true),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
+          ),
         );
       },
     );
@@ -221,45 +242,66 @@ class _SettingsPageState extends State<SettingsPage> {
         showDialog(
           context: context,
           builder: (BuildContext context) {
-            return AlertDialog(
-              backgroundColor: AppColors.background,
+            return Dialog(
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(5),
               ),
-              title: const Text(
-                '초대 코드',
-                style: TextStyle(color: Colors.black),
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    '코드: $code',
-                    style: const TextStyle(color: Colors.black),
-                  ),
-                  const Text(
-                    '10분 동안 유효합니다.',
-                    style: TextStyle(color: Colors.black),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Clipboard.setData(ClipboardData(text: code));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('코드가 복사되었습니다.')),
-                    );
-                  },
-                  child: const Text('복사',
-                      style: TextStyle(color: AppColors.olivegreen)),
+              child: Container(
+                padding: EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(5),
                 ),
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('확인',
-                      style: TextStyle(color: AppColors.olivegreen)),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '초대 코드',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 25),
+                    Text(
+                      '코드: $code',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      '10분 동안 유효합니다.',
+                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                    ),
+                    SizedBox(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        TextButton(
+                          child: Text(
+                            '취소',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                        SizedBox(width: 30),
+                        TextButton(
+                          child: Text(
+                            '복사',
+                            style: TextStyle(color: Color(0xFF4DA374)),
+                          ),
+                          onPressed: () {
+                            Clipboard.setData(ClipboardData(text: code));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('초대 코드가 복사되었습니다.')),
+                            );
+                            Navigator.pop(context);
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-              ],
+              ),
             );
           },
         );
@@ -278,72 +320,105 @@ class _SettingsPageState extends State<SettingsPage> {
 
   // 초대 코드 입력
   Future<void> _enterConnectionCode(BuildContext context) async {
-    final codeController = TextEditingController();
+    final TextEditingController codeController = TextEditingController();
 
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: AppColors.background,
+        return Dialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(5),
           ),
-          title: const Text('초대 코드 입력'),
-          content: TextField(
-            controller: codeController,
-            cursorColor: AppColors.olivegreen,
-            style: const TextStyle(color: Colors.black),
-            decoration: const InputDecoration(
-              labelText: '초대 코드를 입력하세요',
-              labelStyle: TextStyle(color: Colors.grey),
-              focusedBorder: UnderlineInputBorder(
-                borderSide: BorderSide(color: AppColors.green),
-              ),
-              enabledBorder: UnderlineInputBorder(
-                borderSide: BorderSide(color: Colors.grey),
-              ),
+          child: Container(
+            padding: EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(5),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('취소',
-                  style: TextStyle(color: AppColors.olivegreen)),
-            ),
-            TextButton(
-              onPressed: () async {
-                try {
-                  final response = await http.post(
-                    Uri.parse('$baseUrl/connect'),
-                    headers: {'Content-Type': 'application/json'},
-                    body: jsonEncode({
-                      'username': widget.username,
-                      'connectionCode': codeController.text,
-                    }),
-                  );
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '초대 코드 입력',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 25),
+                TextField(
+                  controller: codeController,
+                  decoration: InputDecoration(
+                    labelText: '초대 코드',
+                    labelStyle: TextStyle(color: Color(0xFF4DA374)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(5),
+                      borderSide: BorderSide(color: Color(0xFF4DA374)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(5),
+                      borderSide: BorderSide(color: Color(0xFF4DA374)),
+                    ),
+                  ),
+                ),
+                SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    TextButton(
+                      child: Text(
+                        '취소',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    SizedBox(width: 30),
+                    TextButton(
+                      child: Text(
+                        '확인',
+                        style: TextStyle(color: Color(0xFF4DA374)),
+                      ),
+                      onPressed: () async {
+                        final code = codeController.text.trim();
+                        if (code.isEmpty) return;
 
-                  if (response.statusCode == 200) {
-                    final data = jsonDecode(response.body);
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(data['message'])),
-                    );
-                  } else {
-                    final error = jsonDecode(response.body);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(error['message'])),
-                    );
-                  }
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('서버 연결에 실패했습니다.')),
-                  );
-                }
-              },
-              child: const Text('확인',
-                  style: TextStyle(color: AppColors.olivegreen)),
+                        try {
+                          final response = await http.post(
+                            Uri.parse('$baseUrl/connect'),
+                            headers: {'Content-Type': 'application/json'},
+                            body: jsonEncode({
+                              'username': widget.username,
+                              'connectionCode': code,
+                            }),
+                          );
+
+                          if (response.statusCode == 200) {
+                            Navigator.pop(context);
+                            _loadRelationships();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('연결이 성공적으로 완료되었습니다.')),
+                            );
+                          } else {
+                            final error = jsonDecode(response.body);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(error['message'] ?? '유효하지 않은 초대 코드입니다.')),
+                            );
+                          }
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('서버 연결에 실패했습니다.')),
+                          );
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
+          ),
         );
       },
     );
@@ -354,26 +429,55 @@ class _SettingsPageState extends State<SettingsPage> {
     bool? confirm = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: AppColors.background,
+        return Dialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(5),
           ),
-          title: const Text('멤버 삭제'),
-          content: Text('$memberUsername 멤버를 정말 삭제하시겠습니까?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('취소',
-                  style: TextStyle(color: AppColors.olivegreen)),
+          child: Container(
+            padding: EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(5),
             ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('삭제',
-                  style: TextStyle(color: AppColors.olivegreen)),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '멤버 삭제',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 25),
+                Text(
+                  '$memberUsername 멤버를 정말 삭제하시겠습니까?',
+                  style: TextStyle(fontSize: 16),
+                ),
+                SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    TextButton(
+                      child: Text(
+                        '취소',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                      onPressed: () => Navigator.pop(context, false),
+                    ),
+                    SizedBox(width: 30),
+                    TextButton(
+                      child: Text(
+                        '삭제',
+                        style: TextStyle(color: Color(0xFF4DA374)),
+                      ),
+                      onPressed: () => Navigator.pop(context, true),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
+          ),
         );
       },
     );
@@ -411,24 +515,56 @@ class _SettingsPageState extends State<SettingsPage> {
     bool? confirm = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: AppColors.background,
+        return Dialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(5),
           ),
-          title: const Text('그룹 탈퇴'),
-          content: const Text('정말 탈퇴하시겠습니까?\n탈퇴 후에는 되돌릴 수 없습니다.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('취소'),
+          child: Container(
+            padding: EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(5),
             ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('탈퇴'),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '그룹 탈퇴',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 25),
+                Text(
+                  '정말 탈퇴하시겠습니까?\n탈퇴 후에는 되돌릴 수 없습니다.',
+                  style: TextStyle(fontSize: 16),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    TextButton(
+                      child: Text(
+                        '취소',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                      onPressed: () => Navigator.pop(context, false),
+                    ),
+                    SizedBox(width: 30),
+                    TextButton(
+                      child: Text(
+                        '탈퇴',
+                        style: TextStyle(color: Color(0xFF4DA374)),
+                      ),
+                      onPressed: () => Navigator.pop(context, true),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
+          ),
         );
       },
     );
@@ -462,6 +598,7 @@ class _SettingsPageState extends State<SettingsPage> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
+        scrolledUnderElevation: 0,
         backgroundColor: Colors.transparent, // 배경색 투명으로 설정
         elevation: 0, // 그림자 제거
         title: const Text('설정'),
@@ -572,7 +709,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               alignment: Alignment.centerRight,
                               child: ElevatedButton(
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.olivegreen,
+                                  backgroundColor: AppColors.lightgreen,
                                   foregroundColor: Colors.black,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(5),
