@@ -46,7 +46,7 @@ router.post('/', async (req, res) => {
     }
 });
 
-//마커 조회
+// 마커 조회
 router.get('/:username', async (req, res) => {
     const { username } = req.params;
 
@@ -71,9 +71,9 @@ router.get('/:username', async (req, res) => {
 
         const leaderId = userInfo[0].leader_id;
 
-        // 마커 조회 쿼리 수정
+        // 마커 조회 쿼리 - marker_name도 포함
         const [markers] = await db.promise().query(
-            `SELECT m.latitude, m.longitude, m.marker_type
+            `SELECT m.latitude, m.longitude, m.marker_type, m.marker_name
              FROM markers m
              JOIN users u ON m.user_id = u.user_id
              LEFT JOIN relationships r ON u.user_id = r.member_id
@@ -97,6 +97,7 @@ router.get('/:username', async (req, res) => {
         res.status(500).json({ message: '마커 로드에 실패했습니다.' });
     }
 });
+
 
 //마커 삭제
 router.delete('/:marker_name', async (req, res) => {
