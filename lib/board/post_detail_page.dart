@@ -286,33 +286,26 @@ class _PostDetailPageState extends State<PostDetailPage> {
                       widget.post['image_url'].toString().isNotEmpty)
                     Column(
                       children: [
-                        Container(
-                          constraints: const BoxConstraints(
-                            maxHeight: 400, // 상세 페이지에서 이미지 크기 제한
-                          ),
-                          width: double.infinity,
-                          child: Image.network(
-                            widget.post['image_url'],
-                            fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) {
-                              print('Image error: $error');
-                              return const Center(
-                                child: Text('이미지를 불러올 수 없습니다.'),
-                              );
-                            },
-                            loadingBuilder: (context, child, loadingProgress) {
-                              if (loadingProgress == null) return child;
-                              return Center(
-                                child: CircularProgressIndicator(
-                                  value: loadingProgress.expectedTotalBytes !=
-                                          null
-                                      ? loadingProgress.cumulativeBytesLoaded /
-                                          loadingProgress.expectedTotalBytes!
-                                      : null,
-                                ),
-                              );
-                            },
-                          ),
+                        Image.network(
+                          widget.post['image_url'],
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            print('Image error: $error');
+                            return const Center(
+                              child: Text('이미지를 불러올 수 없습니다.'),
+                            );
+                          },
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Center(
+                              child: CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded /
+                                        loadingProgress.expectedTotalBytes!
+                                    : null,
+                              ),
+                            );
+                          },
                         ),
                         const SizedBox(height: 16), // 하단 여백 추가
                       ],
