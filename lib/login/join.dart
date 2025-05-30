@@ -31,21 +31,18 @@ class _JoinState extends BaseLoginState<Join> {
     return Scaffold(
       resizeToAvoidBottomInset: true,
       backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: Colors.grey[100],
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        title: Text('회원가입', style: TextStyle(color: Colors.black)),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       body: Stack(
         children: [
-          Positioned(
-            top: MediaQuery.of(context).size.height * 0.05,
-            left: 16,
-            child: GestureDetector(
-              onTap: () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => Login()),
-                );
-              },
-              child: Image.asset('assets/images/back.png'),
-            ),
-          ),
           Transform.translate(
             offset: Offset(0, isKeyboardVisible ? 100 : 10),
             child: Center(
@@ -65,8 +62,6 @@ class _JoinState extends BaseLoginState<Join> {
                     buildPasswordAgainTextField(),
                     SizedBox(height: 7),
                     buildjoinButton(),
-                    SizedBox(height: 16),
-                    buildGoogleSignInButton(),
                   ],
                 ),
               ),

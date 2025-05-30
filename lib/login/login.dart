@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:dangq/colors.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:dangq/pages/main_page.dart';
+import 'package:dangq/pages/main/main_page.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:dangq/login/widget_login.dart';
 
@@ -41,8 +41,6 @@ class _LoginState extends BaseLoginState<Login> {
                 buildLoginButton(), //로그인 버튼
                 const SizedBox(height: 8),
                 buildIdpasswordBottomLinks(), //아이디, 비밀번호 찾기
-                const SizedBox(height: 16),
-                buildGoogleSignInButton(), //구글 로그인 버튼
               ],
             ),
           ),

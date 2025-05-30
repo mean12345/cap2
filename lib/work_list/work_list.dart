@@ -5,13 +5,19 @@ import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:dangq/work/dog_list.dart';
 
 class WorkList extends StatefulWidget {
   final String username;
   final int dogId;
+  final String dogName;
 
-  const WorkList({required this.username, required this.dogId, super.key});
-
+  const WorkList({
+    required this.username,
+    required this.dogId,
+    required this.dogName,
+    super.key,
+  });
   @override
   State<WorkList> createState() => _WorkListState();
 }
@@ -20,7 +26,10 @@ class _WorkListState extends State<WorkList> {
   List<Map<String, dynamic>> workItems = [];
   Map<DateTime, List<Map<String, dynamic>>> workoutsByDate = {};
   bool isLoading = true;
-
+  // 강아지 프로필 관련 상태
+  List<Map<String, dynamic>> dogProfiles = [];
+  bool _isLoading = false;
+  int _currentPhotoIndex = 0;
   // 캘린더 관련 상태
   DateTime _focusedDay = DateTime.now();
   DateTime _selectedDay = DateTime.now();
@@ -34,21 +43,49 @@ class _WorkListState extends State<WorkList> {
   @override
   void initState() {
     super.initState();
+    _selectedDogId = widget.dogId;
+    _selectedDogName = widget.dogName;
+    _fetchDogProfiles().then((_) {
+      // 초기 프로필 인덱스 설정
+      int index = dogProfiles.indexWhere((dog) => dog['id'] == widget.dogId);
+      if (index != -1) {
+        setState(() {
+          _currentPhotoIndex = index;
+          _selectedDogImageUrl = dogProfiles[index]['image_url'] ?? '';
+        });
+      }
+    });
     fetchWorkoutData();
   }
 
+  // 현재 선택된 강아지 정보
+  late int _selectedDogId;
+  late String _selectedDogName;
+  String _selectedDogImageUrl = '';
   final String baseUrl = dotenv.get('BASE_URL');
 
+  void _updateSelectedDog(int dogId, String dogName, String imageUrl) {
+    setState(() {
+      _selectedDogId = dogId;
+      _selectedDogName = dogName;
+      _selectedDogImageUrl = imageUrl;
+    });
+    // 선택된 강아지가 변경되면 해당 강아지의 운동 데이터를 다시 가져옴
+    fetchWorkoutDataForDog(dogId);
+  }
+
   Future<void> fetchWorkoutData() async {
+    await fetchWorkoutDataForDog(widget.dogId);
+  }
+
+  Future<void> fetchWorkoutDataForDog(int dogId) async {
     try {
       final response = await http.get(
-        Uri.parse(
-            '$baseUrl/tracking/${widget.username}?dog_id=${widget.dogId}'),
+        Uri.parse('$baseUrl/tracking/${widget.username}?dog_id=$dogId'),
       );
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
-        if (data.isNotEmpty) {}
 
         DateTime? parseKoreanDateTime(String dateStr) {
           try {
@@ -149,7 +186,7 @@ class _WorkListState extends State<WorkList> {
       setState(() {
         _monthlyTotalWalkTime = _formatDuration(totalDuration);
         _monthlyTotalDistance = totalDistance.toStringAsFixed(2);
-        _monthlyTotalSpeed = averageSpeed.toStringAsFixed(2); // 소수점 둘째 자리
+        _monthlyTotalSpeed = averageSpeed.toStringAsFixed(2);
       });
     } catch (e) {
       print('월별 총계 계산 오류: $e');
@@ -191,11 +228,118 @@ class _WorkListState extends State<WorkList> {
     }
   }
 
+  Future<void> _fetchDogProfiles() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final url = '$baseUrl/dogs/get_dogs?username=${widget.username}';
+      final response = await http.get(Uri.parse(url));
+
+      if (response.statusCode == 200) {
+        final List<dynamic> jsonResponse = json.decode(response.body);
+        setState(() {
+          dogProfiles = jsonResponse
+              .map<Map<String, dynamic>>((dog) => {
+                    'dog_name': dog['name'],
+                    'image_url': dog['imageUrl'],
+                    'id': dog['id'],
+                  })
+              .toList();
+
+          // 초기 선택된 강아지의 인덱스 찾기
+          int index =
+              dogProfiles.indexWhere((dog) => dog['id'] == widget.dogId);
+          if (index != -1) {
+            _currentPhotoIndex = index;
+            _selectedDogImageUrl = dogProfiles[index]['image_url'] ?? '';
+          }
+
+          _isLoading = false;
+        });
+      } else {
+        print('실패: ${response.statusCode}');
+        setState(() {
+          _isLoading = false;
+        });
+        throw Exception('Failed to load dog profiles');
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      print('예외 발생: $e');
+      rethrow;
+    }
+  }
+
+  // 강아지 선택 다이얼로그
+  void _showDogSelectionDialog() {
+    if (dogProfiles.isEmpty) return;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          child: Container(
+            padding: EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '반려견 선택',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 20),
+                Container(
+                  height: 300,
+                  child: ListView.builder(
+                    itemCount: dogProfiles.length,
+                    itemBuilder: (context, index) {
+                      final dog = dogProfiles[index];
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundImage: dog['image_url'] != null &&
+                                  dog['image_url'].isNotEmpty
+                              ? NetworkImage(dog['image_url'])
+                              : AssetImage('assets/images/default_dog.png')
+                                  as ImageProvider,
+                          backgroundColor: Colors.grey[300],
+                        ),
+                        title: Text(dog['dog_name'] ?? '이름 없음'),
+                        onTap: () {
+                          _updateSelectedDog(
+                            dog['id'],
+                            dog['dog_name'] ?? '이름 없음',
+                            dog['image_url'] ?? '',
+                          );
+                          Navigator.pop(context);
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
+        scrolledUnderElevation: 0,
         toolbarHeight: MediaQuery.of(context).size.height * 0.05,
         leading: GestureDetector(
           onTap: () => Navigator.pop(context),
@@ -212,6 +356,7 @@ class _WorkListState extends State<WorkList> {
           ? Center(child: CircularProgressIndicator())
           : Column(
               children: [
+                _buildDogProfileSection(),
                 _buildCalendar(),
                 _buildMonthlyTotalSection(),
                 Expanded(
@@ -222,11 +367,84 @@ class _WorkListState extends State<WorkList> {
     );
   }
 
+  // 반려견 프로필 섹션
+  Widget _buildDogProfileSection() {
+    return Container(
+      margin: EdgeInsets.fromLTRB(8, 8, 8, 0),
+      padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.2),
+            spreadRadius: 1,
+            blurRadius: 3,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: GestureDetector(
+        onTap: _showDogSelectionDialog,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.green, width: 2),
+              ),
+              child: CircleAvatar(
+                radius: 28,
+                backgroundImage: _selectedDogImageUrl.isNotEmpty
+                    ? NetworkImage(_selectedDogImageUrl)
+                    : AssetImage('assets/images/default_dog.png')
+                        as ImageProvider,
+                backgroundColor: Colors.grey[300],
+              ),
+            ),
+            SizedBox(width: 16),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _selectedDogName,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  '산책 기록',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+            Spacer(),
+            if (dogProfiles.length > 1)
+              Icon(
+                Icons.keyboard_arrow_down,
+                color: Colors.grey[600],
+                size: 24,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // 월별 총계 섹션
   Widget _buildMonthlyTotalSection() {
     final String monthName = DateFormat('yyyy년 M월').format(_focusedDay);
     return Container(
-      margin: EdgeInsets.fromLTRB(8, 0, 8, 8),
+      margin: EdgeInsets.fromLTRB(8, 8, 8, 8),
       padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -320,7 +538,7 @@ class _WorkListState extends State<WorkList> {
 
   Widget _buildCalendar() {
     return Container(
-      margin: EdgeInsets.all(8.0),
+      margin: EdgeInsets.fromLTRB(8, 0, 8, 0),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
@@ -616,118 +834,6 @@ class WorkListItem extends StatelessWidget {
       height: 40,
       width: 1,
       color: Colors.grey.withOpacity(0.2),
-    );
-  }
-}
-
-class work extends StatefulWidget {
-  const work({super.key});
-
-  @override
-  State<work> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<work> {
-  CalendarFormat _calendarFormat = CalendarFormat.month;
-  DateTime _focusedDay = DateTime.now();
-  DateTime? _selectedDay;
-  final Set<DateTime> _walkDays = {};
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
-        title: const CircleAvatar(
-          radius: 25,
-          backgroundImage:
-              NetworkImage('https://i.imgur.com/qgaYJWX.png'), // 기본 강아지 이미지
-          backgroundColor: Colors.grey,
-        ),
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            TableCalendar(
-              firstDay: DateTime.utc(2024, 1, 1),
-              lastDay: DateTime.utc(2025, 12, 31),
-              focusedDay: _focusedDay,
-              calendarFormat: _calendarFormat,
-              selectedDayPredicate: (day) {
-                return isSameDay(_selectedDay, day);
-              },
-              onDaySelected: (selectedDay, focusedDay) {
-                setState(() {
-                  _selectedDay = selectedDay;
-                  _focusedDay = focusedDay;
-                });
-              },
-              onFormatChanged: (format) {
-                setState(() {
-                  _calendarFormat = format;
-                });
-              },
-              eventLoader: (day) {
-                return _walkDays.contains(day) ? ['산책'] : [];
-              },
-              calendarStyle: const CalendarStyle(
-                markerDecoration: BoxDecoration(
-                  color: Colors.green,
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildStatCard('이동거리', '-km'),
-                  _buildStatCard('평균 속력', '-km/h'),
-                  _buildStatCard('소요시간', '-시간'),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          setState(() {
-            _walkDays.add(_focusedDay);
-          });
-        },
-        child: const Icon(Icons.add),
-      ),
-    );
-  }
-
-  Widget _buildStatCard(String title, String value) {
-    return Card(
-      elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 18,
-                color: Colors.green,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

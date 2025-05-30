@@ -159,7 +159,7 @@ class LocationTracker {
           );
 
           // 10미터 이상 움직였을 때만 거리 누적 및 경로에 추가
-          if (distance >= 10) {
+          if (distance >= 1) {
             totalDistance += distance;
             onDistanceUpdate(totalDistance);
             path.add(newLocation);
