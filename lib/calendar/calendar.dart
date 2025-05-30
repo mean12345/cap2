@@ -713,9 +713,18 @@ class _CalendarPageState extends State<CalendarPage> {
                                 controller: _titleController,
                                 decoration: InputDecoration(
                                   labelText: '제목',
-                                  border: OutlineInputBorder(),
-                                  contentPadding: EdgeInsets.symmetric(
-                                      vertical: 10, horizontal: 12),
+                                  labelStyle: TextStyle(color: Color(0xFF4DA374)),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(5),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(5),
+                                    borderSide: BorderSide(color: Color(0xFF4DA374)),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(5),
+                                    borderSide: BorderSide(color: Color(0xFF4DA374)),
+                                  ),
                                 ),
                               ),
                             ),
@@ -1005,9 +1014,18 @@ class _CalendarPageState extends State<CalendarPage> {
                                 controller: _titleController,
                                 decoration: InputDecoration(
                                   labelText: '제목',
-                                  border: OutlineInputBorder(),
-                                  contentPadding: EdgeInsets.symmetric(
-                                      vertical: 10, horizontal: 12),
+                                  labelStyle: TextStyle(color: Color(0xFF4DA374)),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(5),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(5),
+                                    borderSide: BorderSide(color: Color(0xFF4DA374)),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(5),
+                                    borderSide: BorderSide(color: Color(0xFF4DA374)),
+                                  ),
                                 ),
                               ),
                             ),
