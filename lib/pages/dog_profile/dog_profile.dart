@@ -28,36 +28,6 @@ class _DogProfileState extends State<DogProfile> {
     _fetchDogProfiles();
   }
 
-  Future<void> _deleteDogProfile(String dogId) async {
-    final String baseUrl = dotenv.get('BASE_URL');
-    try {
-      final url = '$baseUrl/dogs/$dogId';
-      final response = await http.delete(Uri.parse(url));
-
-      if (response.statusCode == 200) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('강아지 프로필이 삭제되었습니다.')),
-          );
-          _fetchDogProfiles();
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('삭제 실패: ${response.statusCode}')),
-          );
-        }
-      }
-    } catch (e) {
-      print('강아지 프로필 삭제 오류: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('강아지 프로필 삭제 중 오류가 발생했습니다.')),
-        );
-      }
-    }
-  }
-
   Future<void> _fetchDogProfiles() async {
     setState(() {
       _isLoading = true;
@@ -149,72 +119,57 @@ class _DogProfileState extends State<DogProfile> {
 
   Widget _buildDogProfileCircle(Map<String, dynamic> dog) {
     return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => EditDogProfilePage(
+              username: widget.username,
+              dogProfile: {
+                'id': dog['id'],
+                'name': dog['dog_name'],
+                'imageUrl': dog['image_url'],
+              },
+            ),
+          ),
+        ).then((result) {
+          if (result == true) {
+            _fetchDogProfiles();
+          }
+        });
+      },
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Stack(
-            alignment: Alignment.bottomRight, // 오른쪽 하단 정렬로 변경
-            children: [
-              Container(
-                width: 120,
-                height: 120,
-                margin: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  image: dog['image_url'] != null
-                      ? DecorationImage(
-                          image: NetworkImage(dog['image_url']),
-                          fit: BoxFit.cover,
-                        )
-                      : null,
-                  color: dog['image_url'] == null ? Colors.grey[300] : null,
-                ),
-              ),
-              Positioned(
-                bottom: 0, // 하단에 위치
-                right: 0, // 오른쪽에 위치
-                child: IconButton(
-                  icon: Icon(Icons.delete, color: Colors.red[400], size: 30),
-                  onPressed: () async {
-                    final confirm = await showDialog<bool>(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(5),
-                        ),
-                        backgroundColor: AppColors.background,
-                        title: const Text('삭제 확인'),
-                        content: const Text('이 강아지 프로필을 삭제하시겠습니까?'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, false),
-                            child: const Text('취소'),
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.grey,
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, true),
-                            child: const Text('삭제'),
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.red,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                    if (confirm == true) {
-                      await _deleteDogProfile(dog['id'].toString());
-                    }
-                  },
-                ),
-              ),
-            ],
+          Container(
+            width: 120,
+            height: 120,
+            margin: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              image: dog['image_url'] != null
+                  ? DecorationImage(
+                      image: NetworkImage(dog['image_url']),
+                      fit: BoxFit.cover,
+                    )
+                  : null,
+              color: dog['image_url'] == null ? Colors.grey[300] : null,
+            ),
+            child: dog['image_url'] == null
+                ? Icon(
+                    Icons.pets,
+                    size: 50,
+                    color: Colors.grey[600],
+                  )
+                : null,
           ),
+          const SizedBox(height: 8),
           Text(
             dog['dog_name'] ?? '',
             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+            textAlign: TextAlign.center,
           ),
+          const SizedBox(height: 4),
         ],
       ),
     );
@@ -226,7 +181,8 @@ class _DogProfileState extends State<DogProfile> {
         Navigator.push(
           context,
           MaterialPageRoute(
-              builder: (context) => Add_dog(username: widget.username)),
+              builder: (context) =>
+                  EditDogProfilePage(username: widget.username)),
         ).then((_) => _fetchDogProfiles());
       },
       child: Column(
