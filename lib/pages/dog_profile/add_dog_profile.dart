@@ -8,12 +8,12 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class EditDogProfilePage extends StatefulWidget {
   final String username;
-  final Map<String, dynamic>? dogProfile; // 기존 강아지 정보를 받기 위한 파라미터 추가
+  final Map<String, dynamic>? dogProfile;
 
   const EditDogProfilePage({
     super.key,
     required this.username,
-    this.dogProfile, // 업데이트할 때는 기존 정보가 들어옴
+    this.dogProfile,
   });
 
   @override
@@ -24,13 +24,11 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
   final TextEditingController _nameController = TextEditingController();
   String? _dogImageUrl;
   File? _imageFile;
-  bool _isUpdating = false; // 업데이트 모드인지 확인하는 플래그
+  bool _isUpdating = false;
 
   @override
   void initState() {
     super.initState();
-
-    // 기존 강아지 정보가 있으면 폼에 채워넣기
     if (widget.dogProfile != null) {
       _isUpdating = true;
       _nameController.text = widget.dogProfile!['name'] ?? '';
@@ -76,7 +74,7 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
           _imageFile = null;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('기본 강아지 이미지로 되돌렸습니다!')),
+          const SnackBar(content: Text('기본 반려견 이미지로 되돌렸습니다!')),
         );
       } else {
         throw Exception('기본 이미지로 되돌리기 실패: ${response.body}');
@@ -93,7 +91,7 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
   Future<void> _updateDogProfile() async {
     if (_nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('강아지 이름을 입력해주세요!')),
+        const SnackBar(content: Text('반려견 이름을 입력해주세요!')),
       );
       return;
     }
@@ -123,7 +121,7 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
         }
       }
 
-      // 강아지 프로필 업데이트
+      // 반려견 프로필 업데이트
       final profileResponse = await http.put(
         Uri.parse('$baseUrl/dogs/update/${widget.dogProfile!['id']}'),
         headers: {'Content-Type': 'application/json'},
@@ -136,17 +134,17 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
       if (profileResponse.statusCode == 200) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('강아지 프로필이 수정되었습니다!')),
+            const SnackBar(content: Text('반려견 프로필이 수정되었습니다!')),
           );
           Navigator.pop(context, true);
         }
       } else {
-        throw Exception('강아지 프로필 수정 실패');
+        throw Exception('반려견 프로필 수정 실패');
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('강아지 프로필 수정 중 오류가 발생했습니다.')),
+          const SnackBar(content: Text('반려견 프로필 수정 중 오류가 발생했습니다.')),
         );
       }
       print('오류 발생: $e');
@@ -156,7 +154,7 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
   Future<void> _saveDogProfile() async {
     if (_nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('강아지 이름을 입력해주세요!')),
+        const SnackBar(content: Text('반려견 이름을 입력해주세요!')),
       );
       return;
     }
@@ -186,7 +184,7 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
         }
       }
 
-      // 강아지 정보 등록
+      // 반려견 정보 등록
       final profileResponse = await http.post(
         Uri.parse('$baseUrl/dogs'),
         headers: {'Content-Type': 'application/json'},
@@ -200,17 +198,17 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
       if (profileResponse.statusCode == 201) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('강아지 프로필이 등록되었습니다!')),
+            const SnackBar(content: Text('반려견 프로필이 등록되었습니다!')),
           );
           Navigator.pop(context, true);
         }
       } else {
-        throw Exception('강아지 프로필 등록 실패');
+        throw Exception('반려견 프로필 등록 실패');
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('강아지 프로필 등록 중 오류가 발생했습니다.')),
+          const SnackBar(content: Text('반려견 프로필 등록 중 오류가 발생했습니다.')),
         );
       }
       print('오류 발생: $e');
@@ -225,16 +223,29 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('강아지 프로필 삭제'),
-          content: const Text('정말로 이 강아지 프로필을 삭제하시겠습니까?'),
+          backgroundColor: AppColors.background,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(5),
+          ),
+          title: const Text('반려견 프로필 삭제'),
+          content: const Text(
+            '정말로 이 반려견 프로필을 삭제하시겠습니까?',
+            style: TextStyle(fontSize: 18), // 글씨 크기 키움
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('취소'),
+              child: const Text(
+                '취소',
+                style: TextStyle(color: Colors.grey),
+              ),
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('삭제', style: TextStyle(color: Colors.red)),
+              child: const Text(
+                '삭제',
+                style: TextStyle(color: Colors.red),
+              ),
             ),
           ],
         );
@@ -254,17 +265,17 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
       if (response.statusCode == 200) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('강아지 프로필이 삭제되었습니다!')),
+            const SnackBar(content: Text('반려견 프로필이 삭제되었습니다!')),
           );
           Navigator.pop(context, true);
         }
       } else {
-        throw Exception('강아지 프로필 삭제 실패');
+        throw Exception('반려견 프로필 삭제 실패');
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('강아지 프로필 삭제 중 오류가 발생했습니다.')),
+          const SnackBar(content: Text('반려견 프로필 삭제 중 오류가 발생했습니다.')),
         );
       }
       print('오류 발생: $e');
@@ -273,15 +284,18 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     return Scaffold(
       backgroundColor: AppColors.background,
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        title: Text(_isUpdating ? '강아지 프로필 수정' : '강아지 프로필 등록'),
-        backgroundColor: AppColors.background,
+        toolbarHeight: MediaQuery.of(context).size.height * 0.05,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: Icon(Icons.arrow_back, color: Colors.black, size: 35),
           onPressed: () => Navigator.pop(context),
         ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         actions: _isUpdating
             ? [
                 IconButton(
@@ -292,77 +306,107 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
             : null,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(35),
+        padding: EdgeInsets.fromLTRB(0, 0, 0, bottomInset + 100),
         child: Column(
           children: [
-            SizedBox(height: MediaQuery.of(context).size.height * 0.05),
+            const SizedBox(height: 80),
             GestureDetector(
               onTap: _pickImage,
-              child: CircleAvatar(
-                radius: 90,
-                backgroundColor: Colors.grey[200],
-                backgroundImage: _imageFile != null
-                    ? FileImage(_imageFile!)
-                    : (_dogImageUrl != null && _dogImageUrl!.isNotEmpty
-                        ? NetworkImage(_dogImageUrl!) as ImageProvider
-                        : null),
+              child: Container(
+                width: 140,
+                height: 140,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.grey[300],
+                  border: Border.all(
+                    color: const Color.fromARGB(255, 153, 153, 153),
+                    width: 2,
+                  ),
+                  image: _imageFile != null
+                      ? DecorationImage(
+                          image: FileImage(_imageFile!),
+                          fit: BoxFit.cover,
+                        )
+                      : (_dogImageUrl != null && _dogImageUrl!.isNotEmpty
+                          ? DecorationImage(
+                              image: NetworkImage(_dogImageUrl!),
+                              fit: BoxFit.cover,
+                            )
+                          : null),
+                ),
                 child: (_imageFile == null &&
                         (_dogImageUrl == null || _dogImageUrl!.isEmpty))
-                    ? Icon(Icons.pets, size: 70, color: Colors.grey[600])
+                    ? const Icon(
+                        Icons.add_a_photo,
+                        size: 70,
+                        color: Color.fromARGB(255, 153, 153, 153),
+                      )
                     : null,
               ),
             ),
-            const SizedBox(height: 20),
-            Text(
-              '이미지를 탭하여 변경',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 14,
-              ),
-            ),
             const SizedBox(height: 30),
-            SizedBox(
-              width: MediaQuery.of(context).size.width * 0.7,
-              child: TextField(
-                controller: _nameController,
-                decoration: InputDecoration(
-                  hintText: '강아지 이름',
-                  hintStyle: TextStyle(color: AppColors.workDSTGray),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(5),
-                    borderSide: BorderSide(color: Colors.grey[400]!),
+            Container(
+              margin: EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '이름',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(5),
-                    borderSide: BorderSide(
-                        color: const Color.fromARGB(216, 158, 158, 158)),
+                  SizedBox(height: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: TextField(
+                      controller: _nameController,
+                      autofocus: false,
+                      decoration: InputDecoration(
+                        hintText: '이름',
+                        hintStyle: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 16,
+                        ),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 15,
+                          vertical: 15,
+                        ),
+                        border: InputBorder.none,
+                      ),
+                    ),
                   ),
-                  filled: true,
-                  fillColor: Colors.grey[200],
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(5),
-                    borderSide: BorderSide(color: AppColors.olivegreen),
-                  ),
-                ),
+                ],
               ),
             ),
-            const SizedBox(height: 50),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isUpdating ? _updateDogProfile : _saveDogProfile,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  backgroundColor: AppColors.olivegreen,
-                  foregroundColor: Colors.black,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(5),
-                  ),
-                ),
-                child: Text(_isUpdating ? '수정' : '저장'),
-              ),
-            ),
+            SizedBox(height: 200),
           ],
+        ),
+      ),
+      bottomSheet: Container(
+        width: double.infinity,
+        height: 55,
+        margin: const EdgeInsets.fromLTRB(20, 0, 20, 30),
+        child: ElevatedButton(
+          onPressed: _isUpdating ? _updateDogProfile : _saveDogProfile,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.olivegreen,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(5),
+            ),
+          ),
+          child: Text(
+            _isUpdating ? '수정' : '저장',
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+          ),
         ),
       ),
     );
