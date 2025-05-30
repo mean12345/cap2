@@ -438,29 +438,26 @@ class _BoardPageState extends State<BoardPage> {
                                       post['image_url'].toString().isNotEmpty)
                                     Padding(
                                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                                      child: Container(
-                                        constraints: const BoxConstraints(maxHeight: 300),
-                                        child: Image.network(
-                                          post['image_url'],
-                                          fit: BoxFit.contain,
-                                          errorBuilder: (context, error, stackTrace) {
-                                            print('Image error: $error');
-                                            return const Center(
-                                                child: Text('이미지를 불러올 수 없습니다.'));
-                                          },
-                                          loadingBuilder: (context, child, loadingProgress) {
-                                            if (loadingProgress == null) return child;
-                                            return Center(
-                                              child: CircularProgressIndicator(
-                                                value: loadingProgress.expectedTotalBytes !=
-                                                        null
-                                                    ? loadingProgress.cumulativeBytesLoaded /
-                                                        loadingProgress.expectedTotalBytes!
-                                                    : null,
-                                              ),
-                                            );
-                                          },
-                                        ),
+                                      child: Image.network(
+                                        post['image_url'],
+                                        fit: BoxFit.contain,
+                                        errorBuilder: (context, error, stackTrace) {
+                                          print('Image error: $error');
+                                          return const Center(
+                                              child: Text('이미지를 불러올 수 없습니다.'));
+                                        },
+                                        loadingBuilder: (context, child, loadingProgress) {
+                                          if (loadingProgress == null) return child;
+                                          return Center(
+                                            child: CircularProgressIndicator(
+                                              value: loadingProgress.expectedTotalBytes !=
+                                                      null
+                                                  ? loadingProgress.cumulativeBytesLoaded /
+                                                      loadingProgress.expectedTotalBytes!
+                                                  : null,
+                                            ),
+                                          );
+                                        },
                                       ),
                                     ),
                                   Padding(
