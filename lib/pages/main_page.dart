@@ -341,7 +341,8 @@ class _MainPageState extends State<MainPage> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => Add_dog(username: widget.username),
+                    builder: (context) =>
+                        EditDogProfilePage(username: widget.username),
                   ),
                 ).then((_) => _fetchDogProfilesSafely());
               },
