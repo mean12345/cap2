@@ -571,7 +571,7 @@ class _CalendarPageState extends State<CalendarPage> {
                                               ],
                                             ),
                                             trailing: IconButton(
-                                              icon: Icon(Icons.delete_outline,
+                                              icon: Icon(Icons.delete,
                                                   color: Colors.red),
                                               onPressed: () {
                                                 showDialog(
