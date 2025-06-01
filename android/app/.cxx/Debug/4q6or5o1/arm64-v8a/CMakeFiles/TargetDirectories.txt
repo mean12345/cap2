@@ -1,0 +1,2 @@
+C:/tlqkf/dangq/android/app/.cxx/Debug/4q6or5o1/arm64-v8a/CMakeFiles/edit_cache.dir
+C:/tlqkf/dangq/android/app/.cxx/Debug/4q6or5o1/arm64-v8a/CMakeFiles/rebuild_cache.dir
