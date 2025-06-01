@@ -380,7 +380,7 @@ class _BoardPageState extends State<BoardPage> {
                                             child: Padding(
                                               padding: const EdgeInsets.only(bottom: 8.0),
                                               child: IconButton(
-                                                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                                icon: const Icon(Icons.delete, color: Colors.red),
                                                 onPressed: () => _deletePost(post['post_id'], post['username']),
                                               ),
                                             ),

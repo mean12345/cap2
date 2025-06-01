@@ -106,7 +106,7 @@ class _WorkListState extends State<WorkList> {
                       double.tryParse(item['distance']?.toString() ?? '0') ?? 0;
 
                   String createdAt =
-                      item['created_at']?.toString().split(' ')[0] ??
+                      item['created_at']?.toString() ??
                           DateTime.now().toString().split(' ')[0];
 
                   return {
@@ -559,6 +559,10 @@ class _WorkListState extends State<WorkList> {
                 color: Colors.black87,
                 fontWeight: FontWeight.bold,
               ),
+              todayTextStyle: TextStyle(
+                color: Colors.black87,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             headerStyle: HeaderStyle(
               formatButtonVisible: false,
@@ -598,7 +602,7 @@ class _WorkListState extends State<WorkList> {
             distance: workout['distance'],
             steps: workout['steps'],
             username: workout['username'],
-            createdAt: _formatDisplayDate(workout['created_at']),
+            createdAt: workout['created_at'],
             onDelete: () => _showDeleteConfirmation(workout),
           ),
         );
@@ -609,7 +613,7 @@ class _WorkListState extends State<WorkList> {
   String _formatDisplayDate(String dateString) {
     try {
       DateTime dateTime = DateTime.parse(dateString);
-      return DateFormat('yyyy-MM-dd HH:mm').format(dateTime);
+      return DateFormat('yyyy년 MM월 dd일 HH:mm').format(dateTime);
     } catch (e) {
       return dateString;
     }
@@ -716,30 +720,35 @@ class WorkListItem extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Text(
-                      username,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                Expanded(
+                  child: Row(
+                    children: [
+                      Text(
+                        username,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    SizedBox(width: 10),
-                    Text(
-                      createdAt,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey,
+                      SizedBox(width: 10),
+                      Flexible(
+                        child: Text(
+                          createdAt,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 GestureDetector(
                   onTap: onDelete,
                   child: Icon(
-                    Icons.delete_outline,
-                    color: Colors.grey,
+                    Icons.delete,
+                    color: Colors.red,
                     size: 22,
                   ),
                 ),
@@ -909,3 +918,4 @@ class _HomeScreenState extends State<work> {
     );
   }
 }
+
