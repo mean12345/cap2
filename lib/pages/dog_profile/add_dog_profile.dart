@@ -133,10 +133,10 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
 
       if (profileResponse.statusCode == 200) {
         if (mounted) {
+          Navigator.of(context).pop(true);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('반려견 프로필이 수정되었습니다!')),
           );
-          Navigator.pop(context, true);
         }
       } else {
         throw Exception('반려견 프로필 수정 실패');
@@ -197,10 +197,10 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
 
       if (profileResponse.statusCode == 201) {
         if (mounted) {
+          Navigator.of(context).pop(true);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('반려견 프로필이 등록되었습니다!')),
           );
-          Navigator.pop(context, true);
         }
       } else {
         throw Exception('반려견 프로필 등록 실패');
@@ -264,10 +264,10 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
 
       if (response.statusCode == 200) {
         if (mounted) {
+          Navigator.of(context).pop(true);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('반려견 프로필이 삭제되었습니다!')),
           );
-          Navigator.pop(context, true);
         }
       } else {
         throw Exception('반려견 프로필 삭제 실패');
