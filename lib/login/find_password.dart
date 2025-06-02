@@ -217,7 +217,7 @@ class _FindPasswordState extends BaseLoginState<FindPassword> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
-        backgroundColor: Colors.transparent,
+        backgroundColor: Colors.grey[100],
         elevation: 0,
       ),
       resizeToAvoidBottomInset: true,

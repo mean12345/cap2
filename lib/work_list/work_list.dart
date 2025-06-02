@@ -120,7 +120,7 @@ class _WorkListState extends State<WorkList> {
 
             String createdAtStr = item['created_at'] ?? '';
             DateTime createdAtDate = createdAtStr.isNotEmpty
-                ? (DateTime.tryParse(createdAtStr) ?? DateTime.now())
+                ? (parseKoreanDateTime(createdAtStr) ?? DateTime.now())
                 : DateTime.now();
 
             return {
@@ -375,22 +375,26 @@ class _WorkListState extends State<WorkList> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        toolbarHeight: MediaQuery.of(context).size.height * 0.07,
-        title: const Text(
-          '일정 목록',
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 18,
-            fontWeight: FontWeight.w500,
+      appBar: PreferredSize(
+        preferredSize:
+            Size.fromHeight(MediaQuery.of(context).size.height * 0.05),
+        child: AppBar(
+          scrolledUnderElevation: 0,
+          leading: GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Image.asset('assets/images/back.png'),
           ),
+          title: Text(
+            '산책 기록',
+            style: TextStyle(
+              color: Colors.black,
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          backgroundColor: AppColors.background, // 배경색 변경
+          elevation: 0,
         ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
       ),
       body: isLoading
           ? Center(child: CircularProgressIndicator())
@@ -634,6 +638,10 @@ class _WorkListState extends State<WorkList> {
             color: AppColors.green.withOpacity(0.1),
             shape: BoxShape.circle,
           ),
+          todayTextStyle: TextStyle(
+            color: Colors.black87,
+            fontWeight: FontWeight.bold,
+          ),
           selectedDecoration: BoxDecoration(
             border: Border.all(color: AppColors.green, width: 2),
             shape: BoxShape.circle,
@@ -641,13 +649,6 @@ class _WorkListState extends State<WorkList> {
           selectedTextStyle: TextStyle(
             color: Colors.black87,
             fontWeight: FontWeight.bold,
-          ),
-          todayTextStyle: TextStyle(
-            color: Colors.black87,
-            fontWeight: FontWeight.bold,
-          ),
-          defaultTextStyle: TextStyle(
-            color: Colors.black87,
           ),
         ),
         headerStyle: HeaderStyle(
@@ -696,9 +697,7 @@ class _WorkListState extends State<WorkList> {
   String _formatDisplayDate(String dateString) {
     try {
       DateTime dateTime = DateTime.parse(dateString);
-      // Convert to KST (UTC+9)
-      DateTime kstDateTime = dateTime.toUtc().add(Duration(hours: 9));
-      return DateFormat('yyyy-MM-dd HH:mm').format(kstDateTime);
+      return DateFormat('yyyy-MM-dd HH:mm').format(dateTime);
     } catch (e) {
       return dateString;
     }
