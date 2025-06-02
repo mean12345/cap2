@@ -226,7 +226,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 onPressed: _saveProfile,
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  backgroundColor: AppColors.olivegreen,
+                  backgroundColor: AppColors.lightgreen,
                   foregroundColor: Colors.black, // 버튼 텍스트 색상
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(5),
@@ -242,7 +242,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 onPressed: _resetToDefaultProfile,
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  backgroundColor: AppColors.olivegreen,
+                  backgroundColor: AppColors.lightgreen,
                   foregroundColor: Colors.black, // 버튼 텍스트 색상
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(5),

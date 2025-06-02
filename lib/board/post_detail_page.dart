@@ -19,6 +19,7 @@ class PostDetailPage extends StatefulWidget {
 
 class _PostDetailPageState extends State<PostDetailPage> {
   final TextEditingController _commentController = TextEditingController();
+  final FocusNode _commentFocusNode = FocusNode();
   List<dynamic> comments = [];
 
   @override
@@ -31,6 +32,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
   @override
   void dispose() {
     _commentController.dispose();
+    _commentFocusNode.dispose();
     super.dispose();
   }
 
@@ -73,6 +75,8 @@ class _PostDetailPageState extends State<PostDetailPage> {
         _loadComments();
         // 키보드 숨기기
         FocusScope.of(context).unfocus();
+        // 포커스 노드에서 포커스 제거
+        _commentFocusNode.unfocus();
       } else {
         throw Exception('Failed to add comment');
       }
@@ -105,6 +109,9 @@ class _PostDetailPageState extends State<PostDetailPage> {
   }
 
   Future<void> _deleteComment(int commentId) async {
+    // 키보드 숨기기
+    FocusScope.of(context).unfocus();
+    
     bool? confirm = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
@@ -279,33 +286,26 @@ class _PostDetailPageState extends State<PostDetailPage> {
                       widget.post['image_url'].toString().isNotEmpty)
                     Column(
                       children: [
-                        Container(
-                          constraints: const BoxConstraints(
-                            maxHeight: 400, // 상세 페이지에서 이미지 크기 제한
-                          ),
-                          width: double.infinity,
-                          child: Image.network(
-                            widget.post['image_url'],
-                            fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) {
-                              print('Image error: $error');
-                              return const Center(
-                                child: Text('이미지를 불러올 수 없습니다.'),
-                              );
-                            },
-                            loadingBuilder: (context, child, loadingProgress) {
-                              if (loadingProgress == null) return child;
-                              return Center(
-                                child: CircularProgressIndicator(
-                                  value: loadingProgress.expectedTotalBytes !=
-                                          null
-                                      ? loadingProgress.cumulativeBytesLoaded /
-                                          loadingProgress.expectedTotalBytes!
-                                      : null,
-                                ),
-                              );
-                            },
-                          ),
+                        Image.network(
+                          widget.post['image_url'],
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            print('Image error: $error');
+                            return const Center(
+                              child: Text('이미지를 불러올 수 없습니다.'),
+                            );
+                          },
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Center(
+                              child: CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded /
+                                        loadingProgress.expectedTotalBytes!
+                                    : null,
+                              ),
+                            );
+                          },
                         ),
                         const SizedBox(height: 16), // 하단 여백 추가
                       ],
@@ -407,15 +407,16 @@ class _PostDetailPageState extends State<PostDetailPage> {
                           child: Text(comment['content']),
                         ),
                         trailing: comment['username'] == widget.username
-                            ? GestureDetector(
-                                behavior: HitTestBehavior.opaque,
-                                onTap: () {
-                                  _deleteComment(comment['comment_id']);
+                            ? IconButton(
+                                icon: const Icon(Icons.delete, size: 20, color: Colors.red),
+                                onPressed: () {
+                                  // 키보드 숨기기
+                                  FocusScope.of(context).unfocus();
+                                  // 약간의 지연 후 삭제 다이얼로그 표시
+                                  Future.delayed(Duration.zero, () {
+                                    _deleteComment(comment['comment_id']);
+                                  });
                                 },
-                                child: const Padding(
-                                  padding: EdgeInsets.all(8.0),
-                                  child: Icon(Icons.delete, size: 20),
-                                ),
                               )
                             : null,
                       );
@@ -445,6 +446,8 @@ class _PostDetailPageState extends State<PostDetailPage> {
                 Expanded(
                   child: TextField(
                     controller: _commentController,
+                    focusNode: _commentFocusNode,
+                    autofocus: false,
                     decoration: const InputDecoration(
                       hintText: '댓글을 입력하세요',
                       border: InputBorder.none,

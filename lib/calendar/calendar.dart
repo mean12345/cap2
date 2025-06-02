@@ -665,7 +665,6 @@ class _CalendarPageState extends State<CalendarPage> {
   }
 
   void _showAddEventDialog() {
-    // 일정 개수 제한 체크 제거
     final TextEditingController _titleController = TextEditingController();
     bool _isAllDay = false;
     DateTime _startDate = _selectedDay ?? DateTime.now();
@@ -676,245 +675,289 @@ class _CalendarPageState extends State<CalendarPage> {
 
     showDialog(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.5),
       builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          backgroundColor: Colors.white, //팝업 배경색
-          title: Text('일정 추가'),
-          content: SingleChildScrollView(
+        builder: (context, setState) => Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(5),
+          ),
+          child: Container(
+            padding: EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(5),
+            ),
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.8,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _titleController,
-                        decoration: InputDecoration(
-                          labelText: '제목',
-                          border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(
-                              vertical: 10, horizontal: 12),
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: 8),
-                    InkWell(
-                      onTap: () {
-                        _showColorPicker(context, (color) {
-                          setState(() => _selectedColor = color);
-                        });
-                      },
-                      child: Container(
-                        width: 30,
-                        height: 30,
-                        decoration: BoxDecoration(
-                          color: _selectedColor,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
-                  ],
+                Text(
+                  '일정 추가',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-                SizedBox(height: 16),
-                Row(
-                  children: [
-                    Text('하루 종일'),
-                    Spacer(),
-                    Switch(
-                      value: _isAllDay,
-                      onChanged: (value) {
-                        setState(() {
-                          _isAllDay = value;
-                        });
-                      },
-                    ),
-                  ],
-                ),
-                SizedBox(height: 16),
-                Text('시작', style: TextStyle(fontWeight: FontWeight.bold)),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () async {
-                          final DateTime? date = await showDatePicker(
-                            context: context,
-                            initialDate: _startDate,
-                            firstDate: DateTime(2020),
-                            lastDate: DateTime(2030),
-                            builder: (BuildContext context, Widget? child) {
-                              return Theme(
-                                data: ThemeData.light().copyWith(
-                                  primaryColor: Colors.blue,
-                                  colorScheme:
-                                      ColorScheme.light(primary: Colors.blue),
-                                  buttonTheme: ButtonThemeData(
-                                      textTheme: ButtonTextTheme.primary),
-                                  dialogBackgroundColor: Colors.white,
+                SizedBox(height: 25),
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _titleController,
+                                decoration: InputDecoration(
+                                  labelText: '제목',
+                                  labelStyle: TextStyle(color: Color(0xFF4DA374)),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(5),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(5),
+                                    borderSide: BorderSide(color: Color(0xFF4DA374)),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(5),
+                                    borderSide: BorderSide(color: Color(0xFF4DA374)),
+                                  ),
                                 ),
-                                child: child!,
-                              );
-                            },
-                          );
-                          if (date != null) {
-                            setState(() {
-                              _startDate = date;
-                              if (_endDate.isBefore(_startDate)) {
-                                _endDate = _startDate;
-                              }
-                            });
-                          }
-                        },
-                        child: Text(
-                          '${_startDate.year}.${_startDate.month}.${_startDate.day}',
-                          style: TextStyle(fontSize: 16),
-                        ),
-                      ),
-                    ),
-                    if (!_isAllDay) ...[
-                      Icon(Icons.access_time, size: 20),
-                      SizedBox(width: 8),
-                      TextButton(
-                        onPressed: () async {
-                          final TimeOfDay? time = await _showCustomTimePicker(
-                            context,
-                            _startTime,
-                          );
-                          if (time != null) {
-                            setState(() {
-                              _startTime = time;
-                            });
-                          }
-                        },
-                        child: Text(
-                          '${_startTime.format(context)}',
-                          style: TextStyle(fontSize: 16),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                SizedBox(height: 16),
-                Text('종료', style: TextStyle(fontWeight: FontWeight.bold)),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () async {
-                          final DateTime? date = await showDatePicker(
-                            context: context,
-                            initialDate: _endDate,
-                            firstDate: _startDate, // 시작 날짜보다 이전 날짜 선택 불가
-                            lastDate: DateTime(2030),
-                            builder: (BuildContext context, Widget? child) {
-                              return Theme(
-                                data: ThemeData.light().copyWith(
-                                  primaryColor: Colors.blue,
-                                  colorScheme:
-                                      ColorScheme.light(primary: Colors.blue),
-                                  buttonTheme: ButtonThemeData(
-                                      textTheme: ButtonTextTheme.primary),
-                                  dialogBackgroundColor: Colors.white,
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            InkWell(
+                              onTap: () {
+                                _showColorPicker(context, (color) {
+                                  setState(() => _selectedColor = color);
+                                });
+                              },
+                              child: Container(
+                                width: 30,
+                                height: 30,
+                                decoration: BoxDecoration(
+                                  color: _selectedColor,
+                                  shape: BoxShape.circle,
                                 ),
-                                child: child!,
-                              );
-                            },
-                          );
-                          if (date != null) {
-                            setState(() {
-                              _endDate = date;
-                            });
-                          }
-                        },
-                        child: Text(
-                          '${_endDate.year}.${_endDate.month}.${_endDate.day}',
-                          style: TextStyle(fontSize: 16),
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
+                        SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Text('하루 종일'),
+                            Spacer(),
+                            Switch(
+                              value: _isAllDay,
+                              onChanged: (value) {
+                                setState(() {
+                                  _isAllDay = value;
+                                });
+                              },
+                              activeColor: Color(0xFF4DA374),
+                              inactiveTrackColor: Color(0xFFE0E0E0),
+                              inactiveThumbColor: Colors.grey[400],
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 16),
+                        Text('시작', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextButton(
+                                onPressed: () async {
+                                  final DateTime? date = await showDatePicker(
+                                    context: context,
+                                    initialDate: _startDate,
+                                    firstDate: DateTime(2020),
+                                    lastDate: DateTime(2030),
+                                    builder: (BuildContext context, Widget? child) {
+                                      return Theme(
+                                        data: ThemeData.light().copyWith(
+                                          primaryColor: Color(0xFF4DA374),
+                                          colorScheme:
+                                              ColorScheme.light(primary: Color(0xFF4DA374)),
+                                          buttonTheme: ButtonThemeData(
+                                              textTheme: ButtonTextTheme.primary),
+                                          dialogBackgroundColor: Colors.white,
+                                        ),
+                                        child: child!,
+                                      );
+                                    },
+                                  );
+                                  if (date != null) {
+                                    setState(() {
+                                      _startDate = date;
+                                      if (_endDate.isBefore(_startDate)) {
+                                        _endDate = _startDate;
+                                      }
+                                    });
+                                  }
+                                },
+                                child: Text(
+                                  '${_startDate.year}.${_startDate.month}.${_startDate.day}',
+                                  style: TextStyle(fontSize: 16, color: Colors.black),
+                                ),
+                              ),
+                            ),
+                            if (!_isAllDay) ...[
+                              Icon(Icons.access_time, size: 20),
+                              SizedBox(width: 8),
+                              TextButton(
+                                onPressed: () async {
+                                  final TimeOfDay? time = await _showCustomTimePicker(
+                                    context,
+                                    _startTime,
+                                  );
+                                  if (time != null) {
+                                    setState(() {
+                                      _startTime = time;
+                                    });
+                                  }
+                                },
+                                child: Text(
+                                  '${_startTime.format(context)}',
+                                  style: TextStyle(fontSize: 16, color: Colors.black),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        SizedBox(height: 16),
+                        Text('종료', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextButton(
+                                onPressed: () async {
+                                  final DateTime? date = await showDatePicker(
+                                    context: context,
+                                    initialDate: _endDate,
+                                    firstDate: _startDate,
+                                    lastDate: DateTime(2030),
+                                    builder: (BuildContext context, Widget? child) {
+                                      return Theme(
+                                        data: ThemeData.light().copyWith(
+                                          primaryColor: Color(0xFF4DA374),
+                                          colorScheme:
+                                              ColorScheme.light(primary: Color(0xFF4DA374)),
+                                          buttonTheme: ButtonThemeData(
+                                              textTheme: ButtonTextTheme.primary),
+                                          dialogBackgroundColor: Colors.white,
+                                        ),
+                                        child: child!,
+                                      );
+                                    },
+                                  );
+                                  if (date != null) {
+                                    setState(() {
+                                      _endDate = date;
+                                    });
+                                  }
+                                },
+                                child: Text(
+                                  '${_endDate.year}.${_endDate.month}.${_endDate.day}',
+                                  style: TextStyle(fontSize: 16, color: Colors.black),
+                                ),
+                              ),
+                            ),
+                            if (!_isAllDay) ...[
+                              Icon(Icons.access_time, size: 20),
+                              SizedBox(width: 8),
+                              TextButton(
+                                onPressed: () async {
+                                  final TimeOfDay? time =
+                                      await _showCustomTimePicker(context, _endTime);
+                                  if (time != null) {
+                                    setState(() {
+                                      _endTime = time;
+                                    });
+                                  }
+                                },
+                                child: Text(
+                                  '${_endTime.format(context)}',
+                                  style: TextStyle(fontSize: 16, color: Colors.black),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
                     ),
-                    if (!_isAllDay) ...[
-                      Icon(Icons.access_time, size: 20),
-                      SizedBox(width: 8),
-                      TextButton(
-                        onPressed: () async {
-                          final TimeOfDay? time =
-                              await _showCustomTimePicker(context, _endTime);
-                          if (time != null) {
-                            setState(() {
-                              _endTime = time;
-                            });
-                          }
-                        },
-                        child: Text(
-                          '${_endTime.format(context)}',
-                          style: TextStyle(fontSize: 16),
-                        ),
+                  ),
+                ),
+                SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    TextButton(
+                      child: Text(
+                        '취소',
+                        style: TextStyle(color: Colors.grey),
                       ),
-                    ],
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    SizedBox(width: 30),
+                    TextButton(
+                      child: Text(
+                        '저장',
+                        style: TextStyle(color: Color(0xFF4DA374)),
+                      ),
+                      onPressed: () async {
+                        if (_titleController.text.isEmpty) return;
+
+                        final eventStartDate =
+                            "${_startDate.year}-${_startDate.month}-${_startDate.day}";
+                        final eventEndDate =
+                            "${_endDate.year}-${_endDate.month}-${_endDate.day}";
+                        final eventStartTime =
+                            "${_startTime.hour}:${_startTime.minute}:00";
+                        final eventEndTime = "${_endTime.hour}:${_endTime.minute}:00";
+
+                        final isAllDay = _isAllDay;
+
+                        final eventData = {
+                          "username": widget.username,
+                          "title": _titleController.text,
+                          "start_date": eventStartDate,
+                          "end_date": eventEndDate,
+                          "start_time": eventStartTime,
+                          "end_time": eventEndTime,
+                          "color": _selectedColor.value.toRadixString(16),
+                          "all_day": isAllDay,
+                        };
+
+                        try {
+                          final String baseUrl = dotenv.get('BASE_URL');
+
+                          final response = await http.post(
+                            Uri.parse("$baseUrl/calendar"),
+                            headers: {"Content-Type": "application/json"},
+                            body: jsonEncode(eventData),
+                          );
+
+                          if (response.statusCode == 201) {
+                            print("일정이 성공적으로 추가되었습니다.");
+                            Navigator.pop(context);
+                            _fetchAllEvents();
+                          } else {
+                            print("일정 추가 실패: ${response.body}");
+                          }
+                        } catch (error) {
+                          print("서버 요청 오류: $error");
+                        }
+                      },
+                    ),
                   ],
                 ),
               ],
             ),
           ),
-          actions: [
-            TextButton(
-              child: Text('취소'),
-              onPressed: () => Navigator.pop(context),
-            ),
-            TextButton(
-              child: Text('저장'),
-              onPressed: () async {
-                if (_titleController.text.isEmpty) return;
-
-                final eventStartDate =
-                    "${_startDate.year}-${_startDate.month}-${_startDate.day}";
-                final eventEndDate =
-                    "${_endDate.year}-${_endDate.month}-${_endDate.day}";
-                final eventStartTime =
-                    "${_startTime.hour}:${_startTime.minute}:00";
-                final eventEndTime = "${_endTime.hour}:${_endTime.minute}:00";
-
-                // 🔹 하루 종일 여부를 체크박스로 입력받을 수 있도록 설정
-                final isAllDay = _isAllDay; // _isAllDay는 체크박스 값
-
-                // 🔹 백엔드 API에 보낼 데이터 생성
-                final eventData = {
-                  "username": widget.username,
-                  "title": _titleController.text,
-                  "start_date": eventStartDate,
-                  "end_date": eventEndDate,
-                  "start_time": eventStartTime,
-                  "end_time": eventEndTime,
-                  "color": _selectedColor.value
-                      .toRadixString(16), // 🎨 색상값을 16진수로 변환
-                  "all_day": isAllDay, // 하루 종일 여부 추가
-                };
-
-                try {
-                  final String baseUrl = dotenv.get('BASE_URL');
-
-                  final response = await http.post(
-                    Uri.parse("$baseUrl/calendar"), // 👉 백엔드 서버 주소로 변경 필요
-                    headers: {"Content-Type": "application/json"},
-                    body: jsonEncode(eventData),
-                  );
-
-                  if (response.statusCode == 201) {
-                    print("일정이 성공적으로 추가되었습니다.");
-                    Navigator.pop(context);
-                    // 일정 생성 후 캘린더 새로고침
-                    _fetchAllEvents();
-                  } else {
-                    print("일정 추가 실패: ${response.body}");
-                  }
-                } catch (error) {
-                  print("서버 요청 오류: $error");
-                }
-              },
-            ),
-          ],
         ),
       ),
     );
@@ -933,243 +976,270 @@ class _CalendarPageState extends State<CalendarPage> {
 
     showDialog(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.5),
       builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          backgroundColor: Colors.white,
-          title: Text('일정 수정'),
-          content: SingleChildScrollView(
-            // AlertDialog의 content를 ScrollView로 감싸기
+        builder: (context, setState) => Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(5),
+          ),
+          child: Container(
+            padding: EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(5),
+            ),
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.8,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _titleController,
-                        decoration: InputDecoration(
-                          labelText: '제목',
-                          border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(
-                              vertical: 10, horizontal: 12),
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: 8),
-                    InkWell(
-                      onTap: () {
-                        _showColorPicker(context, (color) {
-                          setState(() => _selectedColor = color);
-                        });
-                      },
-                      child: Container(
-                        width: 30,
-                        height: 30,
-                        decoration: BoxDecoration(
-                          color: _selectedColor,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
-                  ],
+                Text(
+                  '일정 수정',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-                SizedBox(height: 16),
-                Row(
-                  children: [
-                    Text('하루 종일'),
-                    Spacer(),
-                    Switch(
-                      value: _isAllDay,
-                      onChanged: (value) {
-                        setState(() {
-                          _isAllDay = value;
-                        });
-                      },
-                    ),
-                  ],
-                ),
-                SizedBox(height: 16),
-                Text('시작', style: TextStyle(fontWeight: FontWeight.bold)),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () async {
-                          final DateTime? date = await showDatePicker(
-                            context: context,
-                            initialDate: _startDate,
-                            firstDate: DateTime(2020),
-                            lastDate: DateTime(2030),
-                            builder: (BuildContext context, Widget? child) {
-                              return Theme(
-                                data: ThemeData.light().copyWith(
-                                  primaryColor: Colors.blue,
-                                  colorScheme:
-                                      ColorScheme.light(primary: Colors.blue),
-                                  buttonTheme: ButtonThemeData(
-                                      textTheme: ButtonTextTheme.primary),
-                                  dialogBackgroundColor: Colors.white,
+                SizedBox(height: 25),
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _titleController,
+                                decoration: InputDecoration(
+                                  labelText: '제목',
+                                  labelStyle: TextStyle(color: Color(0xFF4DA374)),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(5),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(5),
+                                    borderSide: BorderSide(color: Color(0xFF4DA374)),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(5),
+                                    borderSide: BorderSide(color: Color(0xFF4DA374)),
+                                  ),
                                 ),
-                                child: child!,
-                              );
-                            },
-                          );
-                          if (date != null) {
-                            setState(() {
-                              _startDate = date;
-                              if (_endDate.isBefore(_startDate)) {
-                                _endDate = _startDate;
-                              }
-                            });
-                          }
-                        },
-                        child: Text(
-                          '${_startDate.toLocal().year}.'
-                          '${_startDate.toLocal().month.toString().padLeft(2, '0')}.'
-                          '${_startDate.toLocal().day.toString().padLeft(2, '0')}',
-                          style: TextStyle(fontSize: 16),
-                        ),
-                      ),
-                    ),
-                    if (!_isAllDay) ...[
-                      Icon(Icons.access_time, size: 20),
-                      SizedBox(width: 8),
-                      TextButton(
-                        onPressed: () async {
-                          final TimeOfDay? time = await _showCustomTimePicker(
-                            context,
-                            _startTime,
-                          );
-                          if (time != null) {
-                            setState(() {
-                              _startTime = time;
-                            });
-                          }
-                        },
-                        child: Text(
-                          '${_startTime.format(context)}',
-                          style: TextStyle(fontSize: 16),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                SizedBox(height: 16),
-                Text('종료', style: TextStyle(fontWeight: FontWeight.bold)),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () async {
-                          final DateTime? date = await showDatePicker(
-                            context: context,
-                            initialDate: _endDate,
-                            firstDate: _startDate, // 시작 날짜보다 이전 날짜 선택 불가
-                            lastDate: DateTime(2030),
-                            builder: (BuildContext context, Widget? child) {
-                              return Theme(
-                                data: ThemeData.light().copyWith(
-                                  primaryColor: Colors.blue,
-                                  colorScheme:
-                                      ColorScheme.light(primary: Colors.blue),
-                                  buttonTheme: ButtonThemeData(
-                                      textTheme: ButtonTextTheme.primary),
-                                  dialogBackgroundColor: Colors.white,
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            InkWell(
+                              onTap: () {
+                                _showColorPicker(context, (color) {
+                                  setState(() => _selectedColor = color);
+                                });
+                              },
+                              child: Container(
+                                width: 30,
+                                height: 30,
+                                decoration: BoxDecoration(
+                                  color: _selectedColor,
+                                  shape: BoxShape.circle,
                                 ),
-                                child: child!,
-                              );
-                            },
-                          );
-                          if (date != null) {
-                            setState(() {
-                              _endDate = date;
-                            });
-                          }
-                        },
-                        child: Text(
-                          '${_endDate.toLocal().year}.'
-                          '${_endDate.toLocal().month.toString().padLeft(2, '0')}.'
-                          '${_endDate.toLocal().day.toString().padLeft(2, '0')}',
-                          style: TextStyle(fontSize: 16),
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
+                        SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Text('하루 종일'),
+                            Spacer(),
+                            Switch(
+                              value: _isAllDay,
+                              onChanged: (value) {
+                                setState(() {
+                                  _isAllDay = value;
+                                });
+                              },
+                              activeColor: Color(0xFF4DA374),
+                              inactiveTrackColor: Color(0xFFE0E0E0),
+                              inactiveThumbColor: Colors.grey[400],
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 16),
+                        Text('시작', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextButton(
+                                onPressed: () async {
+                                  final DateTime? date = await showDatePicker(
+                                    context: context,
+                                    initialDate: _startDate,
+                                    firstDate: DateTime(2020),
+                                    lastDate: DateTime(2030),
+                                    builder: (BuildContext context, Widget? child) {
+                                      return Theme(
+                                        data: ThemeData.light().copyWith(
+                                          primaryColor: Color(0xFF4DA374),
+                                          colorScheme:
+                                              ColorScheme.light(primary: Color(0xFF4DA374)),
+                                          buttonTheme: ButtonThemeData(
+                                              textTheme: ButtonTextTheme.primary),
+                                          dialogBackgroundColor: Colors.white,
+                                        ),
+                                        child: child!,
+                                      );
+                                    },
+                                  );
+                                  if (date != null) {
+                                    setState(() {
+                                      _startDate = date;
+                                      if (_endDate.isBefore(_startDate)) {
+                                        _endDate = _startDate;
+                                      }
+                                    });
+                                  }
+                                },
+                                child: Text(
+                                  '${_startDate.year}.${_startDate.month}.${_startDate.day}',
+                                  style: TextStyle(fontSize: 16, color: Colors.black),
+                                ),
+                              ),
+                            ),
+                            if (!_isAllDay) ...[
+                              Icon(Icons.access_time, size: 20),
+                              SizedBox(width: 8),
+                              TextButton(
+                                onPressed: () async {
+                                  final TimeOfDay? time = await _showCustomTimePicker(
+                                    context,
+                                    _startTime,
+                                  );
+                                  if (time != null) {
+                                    setState(() {
+                                      _startTime = time;
+                                    });
+                                  }
+                                },
+                                child: Text(
+                                  '${_startTime.format(context)}',
+                                  style: TextStyle(fontSize: 16, color: Colors.black),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        SizedBox(height: 16),
+                        Text('종료', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextButton(
+                                onPressed: () async {
+                                  final DateTime? date = await showDatePicker(
+                                    context: context,
+                                    initialDate: _endDate,
+                                    firstDate: _startDate,
+                                    lastDate: DateTime(2030),
+                                    builder: (BuildContext context, Widget? child) {
+                                      return Theme(
+                                        data: ThemeData.light().copyWith(
+                                          primaryColor: Color(0xFF4DA374),
+                                          colorScheme:
+                                              ColorScheme.light(primary: Color(0xFF4DA374)),
+                                          buttonTheme: ButtonThemeData(
+                                              textTheme: ButtonTextTheme.primary),
+                                          dialogBackgroundColor: Colors.white,
+                                        ),
+                                        child: child!,
+                                      );
+                                    },
+                                  );
+                                  if (date != null) {
+                                    setState(() {
+                                      _endDate = date;
+                                    });
+                                  }
+                                },
+                                child: Text(
+                                  '${_endDate.year}.${_endDate.month}.${_endDate.day}',
+                                  style: TextStyle(fontSize: 16, color: Colors.black),
+                                ),
+                              ),
+                            ),
+                            if (!_isAllDay) ...[
+                              Icon(Icons.access_time, size: 20),
+                              SizedBox(width: 8),
+                              TextButton(
+                                onPressed: () async {
+                                  final TimeOfDay? time =
+                                      await _showCustomTimePicker(context, _endTime);
+                                  if (time != null) {
+                                    setState(() {
+                                      _endTime = time;
+                                    });
+                                  }
+                                },
+                                child: Text(
+                                  '${_endTime.format(context)}',
+                                  style: TextStyle(fontSize: 16, color: Colors.black),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
                     ),
-                    if (!_isAllDay) ...[
-                      Icon(Icons.access_time, size: 20),
-                      SizedBox(width: 8),
-                      TextButton(
-                        onPressed: () async {
-                          final TimeOfDay? time =
-                              await _showCustomTimePicker(context, _endTime);
-                          if (time != null) {
-                            setState(() {
-                              _endTime = time;
-                            });
-                          }
-                        },
-                        child: Text(
-                          '${_endTime.format(context)}',
-                          style: TextStyle(fontSize: 16),
-                        ),
+                  ),
+                ),
+                SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    TextButton(
+                      child: Text(
+                        '취소',
+                        style: TextStyle(color: Colors.grey),
                       ),
-                    ],
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    SizedBox(width: 30),
+                    TextButton(
+                      child: Text(
+                        '저장',
+                        style: TextStyle(color: Color(0xFF4DA374)),
+                      ),
+                      onPressed: () async {
+                        if (_titleController.text.isEmpty) return;
+
+                        final eventStartDate =
+                            "${_startDate.year}-${_startDate.month}-${_startDate.day}";
+                        final eventEndDate =
+                            "${_endDate.year}-${_endDate.month}-${_endDate.day}";
+                        final eventStartTime =
+                            "${_startTime.hour}:${_startTime.minute}:00";
+                        final eventEndTime = "${_endTime.hour}:${_endTime.minute}:00";
+
+                        final isAllDay = _isAllDay;
+
+                        await updateEvent(
+                          eventId: event.eventId,
+                          title: _titleController.text,
+                          startDate: eventStartDate,
+                          endDate: eventEndDate,
+                          startTime: eventStartTime,
+                          endTime: eventEndTime,
+                          color: _selectedColor.value.toRadixString(16),
+                          allDay: isAllDay,
+                          context: context,
+                        );
+                      },
+                    ),
                   ],
                 ),
               ],
             ),
           ),
-          actions: [
-            TextButton(
-              child: Text('취소'),
-              onPressed: () => Navigator.pop(context),
-            ),
-            TextButton(
-              child: Text('저장'),
-              onPressed: () {
-                final startDateFormatted = "${_startDate.toLocal().year}-"
-                    "${_startDate.toLocal().month.toString().padLeft(2, '0')}-"
-                    "${_startDate.toLocal().day.toString().padLeft(2, '0')}T12:00:00";
-
-                final endDateFormatted = "${_endDate.toLocal().year}-"
-                    "${_endDate.toLocal().month.toString().padLeft(2, '0')}-"
-                    "${_endDate.toLocal().day.toString().padLeft(2, '0')}T12:00:00";
-
-                String startTimeFormatted, endTimeFormatted;
-
-                if (_isAllDay) {
-                  startTimeFormatted = "00:00:00";
-                  endTimeFormatted = "23:59:59";
-                } else {
-                  startTimeFormatted =
-                      "${_startTime.hour.toString().padLeft(2, '0')}:"
-                      "${_startTime.minute.toString().padLeft(2, '0')}:00";
-
-                  endTimeFormatted =
-                      "${_endTime.hour.toString().padLeft(2, '0')}:"
-                      "${_endTime.minute.toString().padLeft(2, '0')}:00";
-                }
-
-                final colorHex = _selectedColor.value
-                    .toRadixString(16)
-                    .substring(2)
-                    .toUpperCase();
-
-                updateEvent(
-                  eventId: event.eventId,
-                  title: _titleController.text,
-                  startDate: startDateFormatted,
-                  endDate: endDateFormatted,
-                  startTime: startTimeFormatted,
-                  endTime: endTimeFormatted,
-                  color: colorHex,
-                  allDay: _isAllDay,
-                  context: context,
-                );
-              },
-            ),
-          ],
         ),
       ),
     );
@@ -1178,29 +1248,72 @@ class _CalendarPageState extends State<CalendarPage> {
   void _showColorPicker(BuildContext context, Function(Color) onColorSelected) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('색상 선택'),
-        content: Container(
-          width: 200,
-          child: GridView.count(
-            crossAxisCount: 3, // 한 줄에 3개
-            mainAxisSpacing: 8, // 세로 간격
-            crossAxisSpacing: 8, // 가로 간격
-            shrinkWrap: true,
-            children: _colors
-                .map((color) => InkWell(
-                      onTap: () {
-                        onColorSelected(color);
-                        Navigator.pop(context);
-                      },
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: color,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ))
-                .toList(),
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(5),
+        ),
+        child: Container(
+          padding: EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(5),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '색상 선택',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              SizedBox(height: 25),
+              Container(
+                width: 200,
+                child: GridView.count(
+                  crossAxisCount: 3,
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8,
+                  shrinkWrap: true,
+                  children: _colors
+                      .map((color) => InkWell(
+                            onTap: () {
+                              onColorSelected(color);
+                              Navigator.pop(context);
+                            },
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: color,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ))
+                      .toList(),
+                ),
+              ),
+              SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  TextButton(
+                    child: Text(
+                      '취소',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  SizedBox(width: 30),
+                  TextButton(
+                    child: Text(
+                      '확인',
+                      style: TextStyle(color: Color(0xFF4DA374)),
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),
@@ -1229,6 +1342,9 @@ class _CalendarPageState extends State<CalendarPage> {
               content: Container(
                 width: 300,
                 height: 400,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -1318,11 +1434,17 @@ class _CalendarPageState extends State<CalendarPage> {
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
                         TextButton(
-                          child: Text('취소'),
+                          child: Text(
+                            '취소',
+                            style: TextStyle(color: Colors.grey),
+                          ),
                           onPressed: () => Navigator.pop(context),
                         ),
                         TextButton(
-                          child: Text('확인'),
+                          child: Text(
+                            '확인',
+                            style: TextStyle(color: Color(0xFF4DA374)),
+                          ),
                           onPressed: () {
                             int hour = selectedHour;
                             if (period == 'PM' && hour != 12) {

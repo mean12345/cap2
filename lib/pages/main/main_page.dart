@@ -14,6 +14,8 @@ import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:dangq/pages/main/weather_container.dart';
 import 'package:dangq/pages/dog_profile/add_dog_profile.dart';
+import 'package:flutter/services.dart';
+import 'package:dangq/pages/main/dog_profile_film.dart';
 
 class MainPage extends StatefulWidget {
   final String username;
@@ -64,7 +66,7 @@ class _MainPageState extends State<MainPage> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('강아지 프로필을 불러오는 데 실패했습니다.')),
+            const SnackBar(content: Text('반려견 프로필을 불러오는 데 실패했습니다.')),
           );
         }
       });
@@ -102,7 +104,7 @@ class _MainPageState extends State<MainPage> {
       print('응답 상태 코드: ${response.statusCode}');
       print('응답 본문: ${response.body}');
 
-      // 404 상태 코드: 강아지 정보가 없는 경우 (정상적인 상황)
+      // 404 상태 코드: 반려견 정보가 없는 경우 (정상적인 상황)
       if (response.statusCode == 404) {
         setState(() {
           dogProfiles = []; // 빈 리스트로 설정
@@ -175,151 +177,137 @@ class _MainPageState extends State<MainPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 202, 223, 228),
-      appBar: _buildAppBar(context),
-      body: _buildBody(context),
-    );
-  }
-
-  Widget _buildProfileSection() {
-    return Row(
-      children: [
-        CircleAvatar(
-          radius: 25,
-          backgroundImage: profilePicture != null && profilePicture!.isNotEmpty
-              ? NetworkImage(profilePicture!)
-              : null,
-          child: profilePicture == null || profilePicture!.isEmpty
-              ? const Icon(Icons.face, color: Colors.grey)
-              : null,
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        systemOverlayStyle: const SystemUiOverlayStyle(
+          statusBarColor: Colors.white,
+          statusBarIconBrightness: Brightness.dark,
+          statusBarBrightness: Brightness.light,
         ),
-        const SizedBox(width: 14),
-        Text(
-          nickname ?? '닉네임을 불러오는 중...',
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
+        leadingWidth: 65,
+        titleSpacing: -12,
+        elevation: 0,
+        backgroundColor: Colors.white,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+          ),
         ),
-      ],
-    );
-  }
-
-  PreferredSizeWidget _buildAppBar(BuildContext context) {
-    return AppBar(
-      elevation: 0,
-      toolbarHeight: MediaQuery.of(context).size.height * 0.1,
-      backgroundColor: Colors.transparent,
-      flexibleSpace: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 5),
-          child: Align(
-            alignment: Alignment.bottomCenter,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildProfileSection(),
-                IconButton(
-                  icon: const Icon(Icons.settings),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            SettingsPage(username: widget.username),
+        leading: SizedBox(
+          width: 45,
+          height: 45,
+          child: Center(
+            child: Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    spreadRadius: 1,
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: ClipOval(
+                child: profilePicture != null && profilePicture!.isNotEmpty
+                    ? Image.network(
+                        profilePicture!,
+                        fit: BoxFit.cover,
+                        width: 38,
+                        height: 38,
+                      )
+                    : Container(
+                        width: 38,
+                        height: 38,
+                        color: Colors.grey[50],
+                        child: const Icon(
+                          Icons.person_outline,
+                          color: AppColors.textSecondary,
+                          size: 20,
+                        ),
                       ),
-                    ).then((_) => _loadProfileInfo());
-                  },
-                ),
-              ],
+              ),
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildBody(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 0), // 패딩 제거
-      child: Column(
-        children: [
-          const SizedBox(height: 20),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18),
-            child: WeatherContainer(
-              location: location,
-              temperature: temperature,
-              dustStatus: dustStatus,
-              uvStatus: uvStatus,
+        title: Padding(
+          padding: const EdgeInsets.only(left: 8),
+          child: Text(
+            nickname ?? '닉네임을 불러오는 중...',
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textPrimary,
+              letterSpacing: -0.5,
             ),
           ),
-          const SizedBox(height: 20),
-          _buildDogProfileSection(),
-          const SizedBox(height: 30),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18),
-            child: Column(
-              children: [
-                _buildIconButtonRow(),
-                const SizedBox(height: 50),
-                _buildWalkButton(),
-              ],
+        ),
+        actions: [
+          Container(
+            margin: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
+              icon: const Icon(
+                Icons.settings,
+                color: Color(0xFF9B9B9B),
+                size: 30,
+              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        SettingsPage(username: widget.username),
+                  ),
+                ).then((_) {
+                  _loadProfileInfo();
+                  _fetchDogProfilesSafely();
+                });
+              },
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildWalkButton() {
-    return SizedBox(
-      width: 250,
-      height: 50,
-      child: ElevatedButton(
-        onPressed: () {
-          if (dogProfiles.isEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('등록된 강아지가 없습니다. 먼저 강아지를 등록해주세요.')),
-            );
-            return;
-          }
-          final currentDog = dogProfiles[_currentPhotoIndex];
-          final dogId = currentDog['id'];
-          final dogName = currentDog['dog_name'];
-
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => WalkChoose(
-                username: widget.username,
-                dogId: dogId,
-                dogName: dogName,
+      body: SafeArea(
+        child: Container(
+          color: Colors.white,
+          child: Column(
+            children: [
+              Container(
+                width: MediaQuery.of(context).size.width,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                ),
+                child: WeatherContainer(
+                  location: location,
+                  temperature: temperature,
+                  dustStatus: dustStatus,
+                  uvStatus: uvStatus,
+                ),
               ),
-            ),
-          ).then((result) {
-            if (result != null && result is Map<String, dynamic>) {
-              setState(() {
-                int index = dogProfiles
-                    .indexWhere((dog) => dog['id'] == result['dogId']);
-                if (index != -1) {
-                  dogProfiles[index]['dog_name'] = result['dogName'];
-                  dogProfiles[index]['image_url'] = result['imageUrl'];
-                  _currentPhotoIndex = index;
-                }
-              });
-            }
-          });
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.lightgreen,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
-        ),
-        child: const Text(
-          '산책하기',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
+              const SizedBox(height: 10),
+              _buildDogProfileSection(),
+              const SizedBox(height: 15),
+              _buildWalkButton(),
+              const Spacer(),
+              Container(
+                color: Colors.white,
+                padding: const EdgeInsets.only(bottom: 24),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 40),
+                    _buildIconButtonRow(),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -328,74 +316,133 @@ class _MainPageState extends State<MainPage> {
 
   Widget _buildDogProfileSection() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+          child: CircularProgressIndicator(
+        valueColor: AlwaysStoppedAnimation<Color>(AppColors.lightgreen),
+      ));
     }
 
     if (dogProfiles.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            InkWell(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        EditDogProfilePage(username: widget.username),
-                  ),
-                ).then((_) => _fetchDogProfilesSafely());
-              },
-              child: CircleAvatar(
-                radius: 70,
-                backgroundColor: Colors.grey[200],
-                child: const Icon(
-                  Icons.add,
-                  size: 60,
-                  color: Colors.grey,
+      final screenHeight = MediaQuery.of(context).size.height;
+      final isSmallScreen = screenHeight < 700;
+
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 15),
+        child: GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => EditDogProfilePage(
+                  username: widget.username,
                 ),
               ),
+            ).then((_) {
+              _fetchDogProfilesSafely();
+              _loadProfileInfo();
+            });
+          },
+          child: Container(
+            width: MediaQuery.of(context).size.width *
+                (isSmallScreen ? 0.75 : 0.8),
+            height: screenHeight * (isSmallScreen ? 0.33 : 0.4),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.15),
+                  spreadRadius: 1,
+                  blurRadius: 8,
+                  offset: const Offset(3, 3),
+                ),
+              ],
             ),
-            const SizedBox(height: 10),
-            const Text(
-              '반려견을 등록해주세요!',
-              style: TextStyle(fontSize: 18),
+            child: Stack(
+              children: [
+                Positioned(
+                  top: isSmallScreen ? 10 : 15,
+                  left: isSmallScreen ? 10 : 15,
+                  right: isSmallScreen ? 10 : 15,
+                  bottom: isSmallScreen ? 40 : 50,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Icon(
+                      Icons.pets,
+                      size: 50,
+                      color: AppColors.lightgreen,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    height: isSmallScreen ? 35 : 45,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: const BorderRadius.only(
+                        bottomLeft: Radius.circular(8),
+                        bottomRight: Radius.circular(8),
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        '반려견을 등록해주세요',
+                        style: TextStyle(
+                          fontSize: isSmallScreen ? 14 : 16,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.textPrimary,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 10),
-          ],
+          ),
         ),
       );
     }
 
-    // 안전하게 인덱스 범위 확인
-    if (_currentPhotoIndex >= dogProfiles.length) {
-      _currentPhotoIndex = dogProfiles.length - 1;
-    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // 화면 크기에 따라 동적으로 크기 조절
+        final screenHeight = MediaQuery.of(context).size.height;
+        final isSmallScreen = screenHeight < 700; // 작은 화면 기준
 
-    final currentDog = dogProfiles[_currentPhotoIndex];
+        return Container(
+          height: isSmallScreen
+              ? screenHeight * 0.4 // 작은 화면에서는 40%
+              : screenHeight * 0.45, // 큰 화면에서는 45%
+          child: PageView.builder(
+            itemCount: dogProfiles.length,
+            controller: PageController(
+              initialPage: _currentPhotoIndex,
+              viewportFraction: isSmallScreen ? 0.8 : 0.85,
+            ),
+            physics: const BouncingScrollPhysics(),
+            onPageChanged: (index) {
+              setState(() {
+                _currentPhotoIndex = index;
+              });
+            },
+            itemBuilder: (context, index) {
+              final dog = dogProfiles[index];
+              final imageUrl = dog['image_url'];
 
-    return Stack(
-      children: [
-        Container(
-          width: MediaQuery.of(context).size.width,
-          height: 215,
-          color: Colors.white.withOpacity(0.5),
-        ),
-        Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const SizedBox(height: 20), // 여백 추가
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back_ios),
-                  onPressed: _prevDogProfile,
+              return Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isSmallScreen ? 8 : 10,
                 ),
-                Stack(
-                  alignment: Alignment.bottomRight,
+                child: Column(
                   children: [
-                    InkWell(
+                    GestureDetector(
                       onTap: () {
                         Navigator.push(
                           context,
@@ -404,75 +451,272 @@ class _MainPageState extends State<MainPage> {
                               username: widget.username,
                             ),
                           ),
-                        ).then((_) => _fetchDogProfilesSafely());
+                        ).then((result) {
+                          if (result != null &&
+                              result is Map<String, dynamic>) {
+                            setState(() {
+                              int index = dogProfiles.indexWhere(
+                                  (dog) => dog['id'] == result['dogId']);
+                              if (index != -1) {
+                                dogProfiles[index]['dog_name'] =
+                                    result['dogName'];
+                                dogProfiles[index]['image_url'] =
+                                    result['imageUrl'];
+                                _currentPhotoIndex = index;
+                              }
+                            });
+                          }
+                          // 항상 프로필 정보도 새로고침
+                          _loadProfileInfo();
+                          _fetchDogProfilesSafely();
+                        });
                       },
-                      child: CircleAvatar(
-                        radius: 70,
-                        backgroundImage: currentDog['image_url'] != null
-                            ? NetworkImage(currentDog['image_url'])
-                            : null,
-                        child: currentDog['image_url'] == null
-                            ? const Icon(Icons.pets, size: 90)
-                            : null,
+                      child: Container(
+                        width: MediaQuery.of(context).size.width *
+                            (isSmallScreen ? 0.75 : 0.8),
+                        height: screenHeight * (isSmallScreen ? 0.35 : 0.42),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.15),
+                              spreadRadius: 1,
+                              blurRadius: 8,
+                              offset: const Offset(3, 3),
+                            ),
+                          ],
+                        ),
+                        child: Stack(
+                          children: [
+                            Positioned(
+                              top: isSmallScreen ? 10 : 15,
+                              left: isSmallScreen ? 10 : 15,
+                              right: isSmallScreen ? 10 : 15,
+                              bottom: isSmallScreen ? 40 : 50,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: imageUrl != null
+                                      ? Image.network(
+                                          imageUrl,
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
+                                            return Container(
+                                              color: Colors.grey[50],
+                                              child: const Icon(
+                                                Icons.pets,
+                                                size: 50,
+                                                color: AppColors.lightgreen,
+                                              ),
+                                            );
+                                          },
+                                        )
+                                      : Container(
+                                          color: Colors.grey[50],
+                                          child: const Icon(
+                                            Icons.pets,
+                                            size: 50,
+                                            color: AppColors.lightgreen,
+                                          ),
+                                        ),
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              bottom: 0,
+                              left: 0,
+                              right: 0,
+                              child: Container(
+                                height: isSmallScreen ? 35 : 45,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: const BorderRadius.only(
+                                    bottomLeft: Radius.circular(8),
+                                    bottomRight: Radius.circular(8),
+                                  ),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    dog['dog_name'] ?? '이름 없음',
+                                    style: TextStyle(
+                                      fontSize: isSmallScreen ? 14 : 16,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppColors.textPrimary,
+                                      letterSpacing: -0.5,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
                 ),
-                IconButton(
-                  icon: const Icon(Icons.arrow_forward_ios),
-                  onPressed: _nextDogProfile,
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildWalkButton() {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: SizedBox(
+        width: 250,
+        height: 50,
+        child: ElevatedButton(
+          onPressed: () {
+            if (dogProfiles.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('등록된 반려견이 없습니다. 먼저 반려견을 등록해주세요.')),
+              );
+              return;
+            }
+            final currentDog = dogProfiles[_currentPhotoIndex];
+            final dogId = currentDog['id'];
+            final dogName = currentDog['dog_name'];
+
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => WalkChoose(
+                  username: widget.username,
+                  dogId: dogId,
+                  dogName: dogName,
                 ),
-              ],
+              ),
+            ).then((result) {
+              if (result != null && result is Map<String, dynamic>) {
+                setState(() {
+                  int index = dogProfiles
+                      .indexWhere((dog) => dog['id'] == result['dogId']);
+                  if (index != -1) {
+                    dogProfiles[index]['dog_name'] = result['dogName'];
+                    dogProfiles[index]['image_url'] = result['imageUrl'];
+                    _currentPhotoIndex = index;
+                  }
+                });
+              }
+            });
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFFB1D09F),
+            foregroundColor: Colors.white,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
             ),
-            const SizedBox(height: 10),
-            Text(
-              currentDog['dog_name'],
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+          child: const Text(
+            '산책하기',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: Color.fromARGB(255, 0, 0, 0),
+              letterSpacing: -0.5,
             ),
-          ],
+          ),
         ),
-      ],
+      ),
     );
   }
 
   Widget _buildIconButtonRow() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
-      children: [
-        _buildIconButton("캘린더", Icons.calendar_month, AppColors.mainYellow),
-        _buildIconButton("게시판", Icons.assignment, AppColors.mainPink),
-        _buildIconButton("리스트", Icons.list, AppColors.mainBlue),
-      ],
+    final screenHeight = MediaQuery.of(context).size.height;
+    final isSmallScreen = screenHeight < 700;
+
+    return Container(
+      width: MediaQuery.of(context).size.width,
+      padding: EdgeInsets.symmetric(
+        horizontal: 8,
+        vertical: 0,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        mainAxisSize: MainAxisSize.max,
+        children: [
+          _buildIconButton("캘린더", Icons.calendar_month, AppColors.mainYellow),
+          _buildIconButton("게시판", Icons.assignment, AppColors.mainPink),
+          _buildIconButton(
+              "산책기록", Icons.analytics_outlined, AppColors.mainBlue),
+        ],
+      ),
     );
   }
 
   Widget _buildIconButton(String label, IconData icon, Color color) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final isSmallScreen = screenHeight < 700;
+
+    final iconSize = isSmallScreen ? 50.0 : 60.0;
+    final containerSize = isSmallScreen ? 45.0 : 60.0;
+
     return SizedBox(
-      width: 70,
+      width: isSmallScreen ? 70 : 80,
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           InkWell(
             onTap: () => _handleIconButtonTap(label),
             child: Container(
-              width: 60,
-              height: 60,
+              width: containerSize,
+              height: containerSize,
               decoration: BoxDecoration(
-                  color: color, borderRadius: BorderRadius.circular(15)),
-              child: Icon(icon, color: Colors.black, size: 32),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(15),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    spreadRadius: 1,
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Icon(icon,
+                  color: Colors.grey[600], size: isSmallScreen ? 24 : 32),
             ),
           ),
-          const SizedBox(height: 10),
-          Text(label, style: const TextStyle(fontSize: 14))
+          SizedBox(height: isSmallScreen ? 6 : 10),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: isSmallScreen ? 12 : 14,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textPrimary,
+            ),
+            textAlign: TextAlign.center,
+            overflow: TextOverflow.ellipsis,
+          ),
         ],
       ),
     );
   }
 
   void _handleIconButtonTap(String label) {
-    // 현재 선택된 강아지 정보 가져오기
     final currentDog = dogProfiles[_currentPhotoIndex];
     final dogId = currentDog['id'];
     final dogName = currentDog['dog_name'];
+
     switch (label) {
       case "캘린더":
         Navigator.push(
@@ -490,7 +734,7 @@ class _MainPageState extends State<MainPage> {
           ),
         );
         break;
-      case "리스트":
+      case "산책기록":
         if (dogProfiles.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('등록된 강아지가 없습니다. 먼저 강아지를 등록해주세요.')),
@@ -502,43 +746,6 @@ class _MainPageState extends State<MainPage> {
           context,
           MaterialPageRoute(
             builder: (context) => WorkList(
-              username: widget.username,
-              dogId: dogId,
-              dogName: dogName,
-            ),
-          ),
-        ).then((result) {
-          //페이지가 닫힐 때 프로필 정보 가져와서 업데이트
-          if (result != null && result is Map<String, dynamic>) {
-            // 현재 프로필 업데이트
-            setState(() {
-              int index =
-                  dogProfiles.indexWhere((dog) => dog['id'] == result['dogId']);
-              if (index != -1) {
-                dogProfiles[index]['dog_name'] = result['dogName'];
-                dogProfiles[index]['image_url'] = result['imageUrl'];
-                _currentPhotoIndex = index;
-              }
-            });
-          }
-        });
-        break;
-      case "산책":
-        // 현재 선택된 강아지가 있는지 확인
-        if (dogProfiles.isEmpty) {
-          // 등록된 강아지가 없는 경우 알림 표시
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('등록된 강아지가 없습니다. 먼저 강아지를 등록해주세요.')),
-          );
-          return;
-        }
-
-        print('선택한 강아지: $dogName (ID: $dogId)로 산책하기');
-
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => WalkChoose(
               username: widget.username,
               dogId: dogId,
               dogName: dogName,
