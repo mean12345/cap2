@@ -234,29 +234,40 @@ class _FindIdState extends BaseLoginState<FindId> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.grey[100],
         scrolledUnderElevation: 0,
-        surfaceTintColor: Colors.transparent,
-        title: Text('아이디 찾기', style: TextStyle(color: Colors.black)),
-      ),
-      body: SingleChildScrollView(
-        child: Container(
-          height: MediaQuery.of(context).size.height -
-              AppBar().preferredSize.height,
-          padding: const EdgeInsets.fromLTRB(45.0, 100.0, 45.0, 45.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              buildEmailTextField(emailController),
-              const SizedBox(height: 7),
-              buildCertifyTextField(),
-              const SizedBox(height: 7),
-              buildFindIdButton(),
-              const SizedBox(height: 8),
-              buildPasswordBottomLinks(),
-            ],
+        title: const Text(
+          '아이디 찾기',
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 18,
+            fontWeight: FontWeight.w500,
           ),
         ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
+        backgroundColor: Colors.grey[100],
+        elevation: 0,
+      ),
+      body: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(45.0, 100.0, 45.0, 45.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                buildEmailTextField(emailController), //이메일 입력 박스
+                const SizedBox(height: 7),
+                buildCertifyTextField(), //인증번호 입력 박스
+                const SizedBox(height: 7),
+                buildFindIdButton(), //아이디 찾기 버튼
+                const SizedBox(height: 8),
+                buildPasswordBottomLinks(), //비밀번호 입력 버튼
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
