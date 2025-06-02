@@ -266,7 +266,14 @@ class _CalendarPageState extends State<CalendarPage> {
           icon: Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Icon(Icons.calendar_today),
+        title: const Text(
+          '캘린더',
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 18,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
       ),
       body: SafeArea(
         child: LayoutBuilder(
@@ -571,7 +578,7 @@ class _CalendarPageState extends State<CalendarPage> {
                                               ],
                                             ),
                                             trailing: IconButton(
-                                              icon: Icon(Icons.delete_outline,
+                                              icon: Icon(Icons.delete,
                                                   color: Colors.red),
                                               onPressed: () {
                                                 showDialog(
