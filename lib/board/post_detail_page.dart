@@ -408,7 +408,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                         ),
                         trailing: comment['username'] == widget.username
                             ? IconButton(
-                                icon: const Icon(Icons.delete, size: 20, color: Colors.red),
+                                icon: const Icon(Icons.delete_outline, size: 20, color: Colors.red),
                                 onPressed: () {
                                   // 키보드 숨기기
                                   FocusScope.of(context).unfocus();
