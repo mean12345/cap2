@@ -187,15 +187,44 @@ class _FindIdState extends BaseLoginState<FindId> {
     print("오류 발생: $message");
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('오류'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('확인'),
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(5),
+        ),
+        child: Container(
+          padding: EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(5),
           ),
-        ],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '오류',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              SizedBox(height: 25),
+              Text(message),
+              SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  TextButton(
+                    child: Text(
+                      '확인',
+                      style: TextStyle(color: AppColors.green),
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -210,24 +239,24 @@ class _FindIdState extends BaseLoginState<FindId> {
         surfaceTintColor: Colors.transparent,
         title: Text('아이디 찾기', style: TextStyle(color: Colors.black)),
       ),
-      body: Stack(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(45.0, 100.0, 45.0, 45.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                buildEmailTextField(emailController), //이메일 입력 박스
-                const SizedBox(height: 7),
-                buildCertifyTextField(), //인증번호 입력 박스
-                const SizedBox(height: 7),
-                buildFindIdButton(), //아이디 찾기 버튼
-                const SizedBox(height: 8),
-                buildPasswordBottomLinks(), //비밀번호 입력 버튼
-              ],
-            ),
+      body: SingleChildScrollView(
+        child: Container(
+          height: MediaQuery.of(context).size.height -
+              AppBar().preferredSize.height,
+          padding: const EdgeInsets.fromLTRB(45.0, 100.0, 45.0, 45.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              buildEmailTextField(emailController),
+              const SizedBox(height: 7),
+              buildCertifyTextField(),
+              const SizedBox(height: 7),
+              buildFindIdButton(),
+              const SizedBox(height: 8),
+              buildPasswordBottomLinks(),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
