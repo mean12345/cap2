@@ -28,14 +28,21 @@ class _JoinState extends BaseLoginState<Join> {
       resizeToAvoidBottomInset: false, // 레이아웃 변경 방지
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.grey[100],
         scrolledUnderElevation: 0,
-        surfaceTintColor: Colors.transparent,
-        title: Text('회원가입', style: TextStyle(color: Colors.black)),
+        title: const Text(
+          '회원가입',
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 18,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
+        backgroundColor: Colors.grey[100],
+        elevation: 0,
       ),
       body: Stack(
         children: [
