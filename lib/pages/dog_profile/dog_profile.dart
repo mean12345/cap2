@@ -84,18 +84,11 @@ class _DogProfileState extends State<DogProfile> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        toolbarHeight: MediaQuery.of(context).size.height * 0.07,
-        title: Text(
-          '반려견 프로필',
-          style: const TextStyle(
-            color: Colors.black,
-            fontSize: 17,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
+        scrolledUnderElevation: 0,
+        toolbarHeight: MediaQuery.of(context).size.height * 0.05,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
+          icon: Icon(Icons.arrow_back, color: Colors.black, size: 35),
+          onPressed: () => Navigator.pop(context),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
