@@ -247,7 +247,7 @@ class _FindIdState extends BaseLoginState<FindId> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
-        backgroundColor: Colors.grey[100],
+        backgroundColor: Colors.transparent,
         elevation: 0,
       ),
       body: Stack(
