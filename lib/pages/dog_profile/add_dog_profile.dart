@@ -309,7 +309,15 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
       backgroundColor: AppColors.background,
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        toolbarHeight: MediaQuery.of(context).size.height * 0.05,
+        toolbarHeight: MediaQuery.of(context).size.height * 0.07,
+        title: Text(
+          _isUpdating ? '반려견 프로필 수정' : '반려견 프로필 설정',
+          style: const TextStyle(
+            color: Colors.black,
+            fontSize: 17,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: Colors.black, size: 35),
           onPressed: () => Navigator.pop(context),
