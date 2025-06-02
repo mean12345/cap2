@@ -309,7 +309,15 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
       backgroundColor: AppColors.background,
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        toolbarHeight: MediaQuery.of(context).size.height * 0.05,
+        toolbarHeight: MediaQuery.of(context).size.height * 0.07,
+        title: Text(
+          _isUpdating ? '반려견 프로필 수정' : '반려견 프로필 설정',
+          style: const TextStyle(
+            color: Colors.black,
+            fontSize: 17,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: Colors.black, size: 35),
           onPressed: () => Navigator.pop(context),
@@ -326,10 +334,10 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
             : null,
       ),
       body: SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(0, 0, 0, bottomInset + 100),
+        padding: EdgeInsets.fromLTRB(0, 0, 0, bottomInset + 20),
         child: Column(
           children: [
-            const SizedBox(height: 80),
+            const SizedBox(height: 40),
             GestureDetector(
               onTap: _pickImage,
               child: Container(
@@ -403,7 +411,7 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
                 ],
               ),
             ),
-            SizedBox(height: 200),
+            SizedBox(height: 100),
           ],
         ),
       ),

@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:http/http.dart' as http;
+import 'package:dangq/work/marker_manager.dart';
 
 class WalkChoose extends StatefulWidget {
   final String username;
@@ -24,9 +25,11 @@ class WalkChoose extends StatefulWidget {
   State<WalkChoose> createState() => WalkChooseState();
 }
 
-class WalkChooseState extends State<WalkChoose> {
+class WalkChooseState extends State<WalkChoose> with WidgetsBindingObserver {
   List<Map<String, dynamic>> dogProfiles = [];
   bool _isLoading = false;
+  late NaverMapController _mapController;
+  MarkerManager? _markerManager;
 
   // 현재 선택된 강아지 정보
   late int _selectedDogId;
@@ -38,9 +41,30 @@ class WalkChooseState extends State<WalkChoose> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _selectedDogId = widget.dogId;
     _selectedDogName = widget.dogName;
     _fetchDogProfiles();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _reloadMarkers();
+    }
+  }
+
+  Future<void> _reloadMarkers() async {
+    if (_mapController != null && _markerManager != null) {
+      await _mapController.clearOverlays();
+      await _markerManager?.loadMarkers();
+    }
   }
 
   void _updateSelectedDog(int dogId, String dogName, String imageUrl) {
@@ -120,7 +144,8 @@ class WalkChooseState extends State<WalkChoose> {
           toolbarHeight: MediaQuery.of(context).size.height * 0.05,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.black, size: 35),
-            onPressed: () {
+            onPressed: () async {
+              await _reloadMarkers();
               Navigator.pop(context, {
                 'dogId': _selectedDogId,
                 'dogName': _selectedDogName,
@@ -135,9 +160,51 @@ class WalkChooseState extends State<WalkChoose> {
         body: Stack(
           children: [
             NaverMap(
-              onMapReady: (controller) {
+              onMapReady: (controller) async {
                 controller
                     .setLocationTrackingMode(NLocationTrackingMode.follow);
+                _mapController = controller;
+                _markerManager = MarkerManager(
+                  mapController: controller,
+                  username: widget.username,
+                  showDeleteConfirmationDialog: (markerName, markerId) {
+                    showDialog(
+                      context: context,
+                      builder: (BuildContext context) {
+                        return AlertDialog(
+                          backgroundColor: AppColors.background,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                          title: const Text('마커 삭제'),
+                          content: const Text('이 마커를 삭제하시겠습니까?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              style: TextButton.styleFrom(
+                                  foregroundColor: AppColors.green),
+                              child: const Text('취소'),
+                            ),
+                            TextButton(
+                              onPressed: () async {
+                                await _markerManager
+                                    ?.deleteMarkerFromDB(markerName);
+                                await _mapController.clearOverlays();
+                                await _markerManager?.loadMarkers();
+                                setState(() {});
+                                Navigator.of(context).pop();
+                              },
+                              style: TextButton.styleFrom(
+                                  foregroundColor: AppColors.green),
+                              child: const Text('삭제'),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
+                );
+                await _markerManager?.loadMarkers();
               },
               options: const NaverMapViewOptions(
                 locationButtonEnable: false,
@@ -235,8 +302,8 @@ class WalkChooseState extends State<WalkChoose> {
 
   Widget _buildOptionButton(String text) {
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
+      onTap: () async {
+        await Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => Work(
@@ -245,13 +312,19 @@ class WalkChooseState extends State<WalkChoose> {
               dogName: _selectedDogName,
             ),
           ),
-        ).then((result) {
+        ).then((result) async {
           if (result != null && result is Map<String, dynamic>) {
             _updateSelectedDog(
               result['dogId'],
               result['dogName'],
               result['imageUrl'],
             );
+          }
+          // Work 페이지에서 돌아올 때 마커 다시 로드
+          if (_mapController != null && _markerManager != null) {
+            await _mapController.clearOverlays();
+            await _markerManager?.loadMarkers();
+            setState(() {}); // UI 업데이트를 위해 setState 호출
           }
         });
       },
