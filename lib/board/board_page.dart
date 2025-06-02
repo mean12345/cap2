@@ -241,12 +241,19 @@ class _BoardPageState extends State<BoardPage> {
     return Scaffold(
       appBar: AppBar(
         scrolledUnderElevation: 0,
-        title: const Text('게시판'),
+        title: const Text(
+          '게시판',
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 18,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        backgroundColor: Colors.white, // AppBar 배경을 흰색으로 설정
+        backgroundColor: Colors.white,
         elevation: 0,
         actions: [
           Padding(
