@@ -352,8 +352,7 @@ class _CalendarPageState extends State<CalendarPage> {
                                 width: 20,
                                 height: 20,
                                 decoration: BoxDecoration(
-                                  color:
-                                      const Color.fromARGB(255, 124, 172, 117),
+                                  color: Colors.grey,
                                   shape: BoxShape.circle,
                                 ),
                                 child: Center(
@@ -371,7 +370,7 @@ class _CalendarPageState extends State<CalendarPage> {
                                 width: 20,
                                 height: 20,
                                 decoration: BoxDecoration(
-                                  color: Colors.red,
+                                  color: Colors.green,
                                   shape: BoxShape.circle,
                                 ),
                                 child: Center(
