@@ -108,11 +108,16 @@ router.delete('/:username', async (req, res) => {
         const userId = user[0].user_id;
         const userRole = user[0].role;
 
-        // 사용자의 게시글에 연결된 이미지 파일 삭제
+        // 사용자의 게시글 ID 조회
         const [posts] = await db
             .promise()
-            .query('SELECT image_url FROM posts WHERE user_id = ?', [userId]);
+            .query('SELECT post_id, image_url FROM posts WHERE user_id = ?', [
+                userId,
+            ]);
 
+        const postIds = posts.map((post) => post.post_id);
+
+        // 게시글 이미지 삭제
         for (const post of posts) {
             if (post.image_url) {
                 const imagePath = post.image_url.split('/uploads/')[1];
@@ -123,7 +128,19 @@ router.delete('/:username', async (req, res) => {
             }
         }
 
-        // 사용자의 게시글 삭제
+        // 🔽 게시글에 달린 댓글 삭제
+        if (postIds.length > 0) {
+            await db
+                .promise()
+                .query(
+                    `DELETE FROM comments WHERE post_id IN (${postIds
+                        .map(() => '?')
+                        .join(',')})`,
+                    postIds
+                );
+        }
+
+        // 게시글 삭제
         await db
             .promise()
             .query('DELETE FROM posts WHERE user_id = ?', [userId]);
@@ -152,12 +169,12 @@ router.delete('/:username', async (req, res) => {
                 ]);
         }
 
-        // 🔽 tracking_data 삭제 추가
+        // tracking_data 삭제
         await db
             .promise()
             .query('DELETE FROM tracking_data WHERE user_id = ?', [userId]);
 
-        // 사용자 계정 삭제
+        // 사용자 삭제
         await db
             .promise()
             .query('DELETE FROM users WHERE user_id = ?', [userId]);
