@@ -399,12 +399,15 @@ class _SettingsPageState extends State<SettingsPage> {
                             Navigator.pop(context);
                             _loadRelationships();
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('연결이 성공적으로 완료되었습니다.')),
+                              const SnackBar(
+                                  content: Text('연결이 성공적으로 완료되었습니다.')),
                             );
                           } else {
                             final error = jsonDecode(response.body);
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(error['message'] ?? '유효하지 않은 초대 코드입니다.')),
+                              SnackBar(
+                                  content: Text(
+                                      error['message'] ?? '유효하지 않은 초대 코드입니다.')),
                             );
                           }
                         } catch (e) {
