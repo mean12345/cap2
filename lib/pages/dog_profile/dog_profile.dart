@@ -84,6 +84,7 @@ class _DogProfileState extends State<DogProfile> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
+        scrolledUnderElevation: 0,
         toolbarHeight: MediaQuery.of(context).size.height * 0.05,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: Colors.black, size: 35),

@@ -150,8 +150,7 @@ class _CalendarPageState extends State<CalendarPage> {
 // 일정 삭제 함수
   Future<void> _deleteEvent(int eventId) async {
     final response = await http.delete(
-      Uri.parse(
-          '$baseUrl/calendar/${widget.username}/delete/$eventId'),
+      Uri.parse('$baseUrl/calendar/${widget.username}/delete/$eventId'),
     );
 
     if (response.statusCode == 200) {
@@ -352,8 +351,7 @@ class _CalendarPageState extends State<CalendarPage> {
                                 width: 20,
                                 height: 20,
                                 decoration: BoxDecoration(
-                                  color:
-                                      const Color.fromARGB(255, 124, 172, 117),
+                                  color: Colors.grey,
                                   shape: BoxShape.circle,
                                 ),
                                 child: Center(
@@ -371,7 +369,7 @@ class _CalendarPageState extends State<CalendarPage> {
                                 width: 20,
                                 height: 20,
                                 decoration: BoxDecoration(
-                                  color: Colors.red,
+                                  color: Colors.green,
                                   shape: BoxShape.circle,
                                 ),
                                 child: Center(
@@ -584,58 +582,96 @@ class _CalendarPageState extends State<CalendarPage> {
                                                 showDialog(
                                                   context: context,
                                                   builder: (context) => Dialog(
-                                                    shape: RoundedRectangleBorder(
-                                                      borderRadius: BorderRadius.circular(5),
+                                                    shape:
+                                                        RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              5),
                                                     ),
                                                     child: Container(
-                                                      padding: EdgeInsets.all(20),
+                                                      padding:
+                                                          EdgeInsets.all(20),
                                                       decoration: BoxDecoration(
                                                         color: Colors.white,
-                                                        borderRadius: BorderRadius.circular(5),
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(5),
                                                       ),
                                                       child: Column(
-                                                        mainAxisSize: MainAxisSize.min,
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
                                                         children: [
                                                           Text(
                                                             '삭제 확인',
                                                             style: TextStyle(
                                                               fontSize: 18,
-                                                              fontWeight: FontWeight.bold,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
                                                             ),
                                                           ),
                                                           SizedBox(height: 25),
-                                                          Text('이 일정을 삭제하시겠습니까?'),
+                                                          Text(
+                                                              '이 일정을 삭제하시겠습니까?'),
                                                           SizedBox(height: 20),
                                                           Row(
-                                                            mainAxisAlignment: MainAxisAlignment.center,
+                                                            mainAxisAlignment:
+                                                                MainAxisAlignment
+                                                                    .center,
                                                             children: [
                                                               TextButton(
                                                                 child: Text(
                                                                   '취소',
-                                                                  style: TextStyle(color: Colors.grey),
+                                                                  style: TextStyle(
+                                                                      color: Colors
+                                                                          .grey),
                                                                 ),
-                                                                onPressed: () => Navigator.pop(context),
+                                                                onPressed: () =>
+                                                                    Navigator.pop(
+                                                                        context),
                                                               ),
-                                                              SizedBox(width: 30),
+                                                              SizedBox(
+                                                                  width: 30),
                                                               TextButton(
                                                                 child: Text(
                                                                   '삭제',
-                                                                  style: TextStyle(color: Color.fromARGB(255, 124, 172, 117)),
+                                                                  style: TextStyle(
+                                                                      color: Color.fromARGB(
+                                                                          255,
+                                                                          124,
+                                                                          172,
+                                                                          117)),
                                                                 ),
                                                                 onPressed: () {
                                                                   setState(() {
-                                                                    _deleteEvent(event.eventId).then((_) {
-                                                                      final eventDate = DateTime(
-                                                                        event.startDate.year,
-                                                                        event.startDate.month,
-                                                                        event.startDate.day,
+                                                                    _deleteEvent(event
+                                                                            .eventId)
+                                                                        .then(
+                                                                            (_) {
+                                                                      final eventDate =
+                                                                          DateTime(
+                                                                        event
+                                                                            .startDate
+                                                                            .year,
+                                                                        event
+                                                                            .startDate
+                                                                            .month,
+                                                                        event
+                                                                            .startDate
+                                                                            .day,
                                                                       );
-                                                                      _events[eventDate]?.remove(event);
-                                                                      if (_events[eventDate]?.isEmpty ?? false) {
-                                                                        _events.remove(eventDate);
+                                                                      _events[eventDate]
+                                                                          ?.remove(
+                                                                              event);
+                                                                      if (_events[eventDate]
+                                                                              ?.isEmpty ??
+                                                                          false) {
+                                                                        _events.remove(
+                                                                            eventDate);
                                                                       }
                                                                     });
-                                                                    Navigator.pop(context);
+                                                                    Navigator.pop(
+                                                                        context);
                                                                   });
                                                                 },
                                                               ),
@@ -720,17 +756,20 @@ class _CalendarPageState extends State<CalendarPage> {
                                 controller: _titleController,
                                 decoration: InputDecoration(
                                   labelText: '제목',
-                                  labelStyle: TextStyle(color: Color(0xFF4DA374)),
+                                  labelStyle:
+                                      TextStyle(color: Color(0xFF4DA374)),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(5),
                                   ),
                                   focusedBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(5),
-                                    borderSide: BorderSide(color: Color(0xFF4DA374)),
+                                    borderSide:
+                                        BorderSide(color: Color(0xFF4DA374)),
                                   ),
                                   enabledBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(5),
-                                    borderSide: BorderSide(color: Color(0xFF4DA374)),
+                                    borderSide:
+                                        BorderSide(color: Color(0xFF4DA374)),
                                   ),
                                 ),
                               ),
@@ -772,7 +811,8 @@ class _CalendarPageState extends State<CalendarPage> {
                           ],
                         ),
                         SizedBox(height: 16),
-                        Text('시작', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text('시작',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
                         Row(
                           children: [
                             Expanded(
@@ -783,14 +823,16 @@ class _CalendarPageState extends State<CalendarPage> {
                                     initialDate: _startDate,
                                     firstDate: DateTime(2020),
                                     lastDate: DateTime(2030),
-                                    builder: (BuildContext context, Widget? child) {
+                                    builder:
+                                        (BuildContext context, Widget? child) {
                                       return Theme(
                                         data: ThemeData.light().copyWith(
                                           primaryColor: Color(0xFF4DA374),
-                                          colorScheme:
-                                              ColorScheme.light(primary: Color(0xFF4DA374)),
+                                          colorScheme: ColorScheme.light(
+                                              primary: Color(0xFF4DA374)),
                                           buttonTheme: ButtonThemeData(
-                                              textTheme: ButtonTextTheme.primary),
+                                              textTheme:
+                                                  ButtonTextTheme.primary),
                                           dialogBackgroundColor: Colors.white,
                                         ),
                                         child: child!,
@@ -808,7 +850,8 @@ class _CalendarPageState extends State<CalendarPage> {
                                 },
                                 child: Text(
                                   '${_startDate.year}.${_startDate.month}.${_startDate.day}',
-                                  style: TextStyle(fontSize: 16, color: Colors.black),
+                                  style: TextStyle(
+                                      fontSize: 16, color: Colors.black),
                                 ),
                               ),
                             ),
@@ -817,7 +860,8 @@ class _CalendarPageState extends State<CalendarPage> {
                               SizedBox(width: 8),
                               TextButton(
                                 onPressed: () async {
-                                  final TimeOfDay? time = await _showCustomTimePicker(
+                                  final TimeOfDay? time =
+                                      await _showCustomTimePicker(
                                     context,
                                     _startTime,
                                   );
@@ -829,14 +873,16 @@ class _CalendarPageState extends State<CalendarPage> {
                                 },
                                 child: Text(
                                   '${_startTime.format(context)}',
-                                  style: TextStyle(fontSize: 16, color: Colors.black),
+                                  style: TextStyle(
+                                      fontSize: 16, color: Colors.black),
                                 ),
                               ),
                             ],
                           ],
                         ),
                         SizedBox(height: 16),
-                        Text('종료', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text('종료',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
                         Row(
                           children: [
                             Expanded(
@@ -847,14 +893,16 @@ class _CalendarPageState extends State<CalendarPage> {
                                     initialDate: _endDate,
                                     firstDate: _startDate,
                                     lastDate: DateTime(2030),
-                                    builder: (BuildContext context, Widget? child) {
+                                    builder:
+                                        (BuildContext context, Widget? child) {
                                       return Theme(
                                         data: ThemeData.light().copyWith(
                                           primaryColor: Color(0xFF4DA374),
-                                          colorScheme:
-                                              ColorScheme.light(primary: Color(0xFF4DA374)),
+                                          colorScheme: ColorScheme.light(
+                                              primary: Color(0xFF4DA374)),
                                           buttonTheme: ButtonThemeData(
-                                              textTheme: ButtonTextTheme.primary),
+                                              textTheme:
+                                                  ButtonTextTheme.primary),
                                           dialogBackgroundColor: Colors.white,
                                         ),
                                         child: child!,
@@ -869,7 +917,8 @@ class _CalendarPageState extends State<CalendarPage> {
                                 },
                                 child: Text(
                                   '${_endDate.year}.${_endDate.month}.${_endDate.day}',
-                                  style: TextStyle(fontSize: 16, color: Colors.black),
+                                  style: TextStyle(
+                                      fontSize: 16, color: Colors.black),
                                 ),
                               ),
                             ),
@@ -879,7 +928,8 @@ class _CalendarPageState extends State<CalendarPage> {
                               TextButton(
                                 onPressed: () async {
                                   final TimeOfDay? time =
-                                      await _showCustomTimePicker(context, _endTime);
+                                      await _showCustomTimePicker(
+                                          context, _endTime);
                                   if (time != null) {
                                     setState(() {
                                       _endTime = time;
@@ -888,7 +938,8 @@ class _CalendarPageState extends State<CalendarPage> {
                                 },
                                 child: Text(
                                   '${_endTime.format(context)}',
-                                  style: TextStyle(fontSize: 16, color: Colors.black),
+                                  style: TextStyle(
+                                      fontSize: 16, color: Colors.black),
                                 ),
                               ),
                             ],
@@ -924,7 +975,8 @@ class _CalendarPageState extends State<CalendarPage> {
                             "${_endDate.year}-${_endDate.month}-${_endDate.day}";
                         final eventStartTime =
                             "${_startTime.hour}:${_startTime.minute}:00";
-                        final eventEndTime = "${_endTime.hour}:${_endTime.minute}:00";
+                        final eventEndTime =
+                            "${_endTime.hour}:${_endTime.minute}:00";
 
                         final isAllDay = _isAllDay;
 
@@ -1021,17 +1073,20 @@ class _CalendarPageState extends State<CalendarPage> {
                                 controller: _titleController,
                                 decoration: InputDecoration(
                                   labelText: '제목',
-                                  labelStyle: TextStyle(color: Color(0xFF4DA374)),
+                                  labelStyle:
+                                      TextStyle(color: Color(0xFF4DA374)),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(5),
                                   ),
                                   focusedBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(5),
-                                    borderSide: BorderSide(color: Color(0xFF4DA374)),
+                                    borderSide:
+                                        BorderSide(color: Color(0xFF4DA374)),
                                   ),
                                   enabledBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(5),
-                                    borderSide: BorderSide(color: Color(0xFF4DA374)),
+                                    borderSide:
+                                        BorderSide(color: Color(0xFF4DA374)),
                                   ),
                                 ),
                               ),
@@ -1073,7 +1128,8 @@ class _CalendarPageState extends State<CalendarPage> {
                           ],
                         ),
                         SizedBox(height: 16),
-                        Text('시작', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text('시작',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
                         Row(
                           children: [
                             Expanded(
@@ -1084,14 +1140,16 @@ class _CalendarPageState extends State<CalendarPage> {
                                     initialDate: _startDate,
                                     firstDate: DateTime(2020),
                                     lastDate: DateTime(2030),
-                                    builder: (BuildContext context, Widget? child) {
+                                    builder:
+                                        (BuildContext context, Widget? child) {
                                       return Theme(
                                         data: ThemeData.light().copyWith(
                                           primaryColor: Color(0xFF4DA374),
-                                          colorScheme:
-                                              ColorScheme.light(primary: Color(0xFF4DA374)),
+                                          colorScheme: ColorScheme.light(
+                                              primary: Color(0xFF4DA374)),
                                           buttonTheme: ButtonThemeData(
-                                              textTheme: ButtonTextTheme.primary),
+                                              textTheme:
+                                                  ButtonTextTheme.primary),
                                           dialogBackgroundColor: Colors.white,
                                         ),
                                         child: child!,
@@ -1109,7 +1167,8 @@ class _CalendarPageState extends State<CalendarPage> {
                                 },
                                 child: Text(
                                   '${_startDate.year}.${_startDate.month}.${_startDate.day}',
-                                  style: TextStyle(fontSize: 16, color: Colors.black),
+                                  style: TextStyle(
+                                      fontSize: 16, color: Colors.black),
                                 ),
                               ),
                             ),
@@ -1118,7 +1177,8 @@ class _CalendarPageState extends State<CalendarPage> {
                               SizedBox(width: 8),
                               TextButton(
                                 onPressed: () async {
-                                  final TimeOfDay? time = await _showCustomTimePicker(
+                                  final TimeOfDay? time =
+                                      await _showCustomTimePicker(
                                     context,
                                     _startTime,
                                   );
@@ -1130,14 +1190,16 @@ class _CalendarPageState extends State<CalendarPage> {
                                 },
                                 child: Text(
                                   '${_startTime.format(context)}',
-                                  style: TextStyle(fontSize: 16, color: Colors.black),
+                                  style: TextStyle(
+                                      fontSize: 16, color: Colors.black),
                                 ),
                               ),
                             ],
                           ],
                         ),
                         SizedBox(height: 16),
-                        Text('종료', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text('종료',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
                         Row(
                           children: [
                             Expanded(
@@ -1148,14 +1210,16 @@ class _CalendarPageState extends State<CalendarPage> {
                                     initialDate: _endDate,
                                     firstDate: _startDate,
                                     lastDate: DateTime(2030),
-                                    builder: (BuildContext context, Widget? child) {
+                                    builder:
+                                        (BuildContext context, Widget? child) {
                                       return Theme(
                                         data: ThemeData.light().copyWith(
                                           primaryColor: Color(0xFF4DA374),
-                                          colorScheme:
-                                              ColorScheme.light(primary: Color(0xFF4DA374)),
+                                          colorScheme: ColorScheme.light(
+                                              primary: Color(0xFF4DA374)),
                                           buttonTheme: ButtonThemeData(
-                                              textTheme: ButtonTextTheme.primary),
+                                              textTheme:
+                                                  ButtonTextTheme.primary),
                                           dialogBackgroundColor: Colors.white,
                                         ),
                                         child: child!,
@@ -1170,7 +1234,8 @@ class _CalendarPageState extends State<CalendarPage> {
                                 },
                                 child: Text(
                                   '${_endDate.year}.${_endDate.month}.${_endDate.day}',
-                                  style: TextStyle(fontSize: 16, color: Colors.black),
+                                  style: TextStyle(
+                                      fontSize: 16, color: Colors.black),
                                 ),
                               ),
                             ),
@@ -1180,7 +1245,8 @@ class _CalendarPageState extends State<CalendarPage> {
                               TextButton(
                                 onPressed: () async {
                                   final TimeOfDay? time =
-                                      await _showCustomTimePicker(context, _endTime);
+                                      await _showCustomTimePicker(
+                                          context, _endTime);
                                   if (time != null) {
                                     setState(() {
                                       _endTime = time;
@@ -1189,7 +1255,8 @@ class _CalendarPageState extends State<CalendarPage> {
                                 },
                                 child: Text(
                                   '${_endTime.format(context)}',
-                                  style: TextStyle(fontSize: 16, color: Colors.black),
+                                  style: TextStyle(
+                                      fontSize: 16, color: Colors.black),
                                 ),
                               ),
                             ],
@@ -1225,7 +1292,8 @@ class _CalendarPageState extends State<CalendarPage> {
                             "${_endDate.year}-${_endDate.month}-${_endDate.day}";
                         final eventStartTime =
                             "${_startTime.hour}:${_startTime.minute}:00";
-                        final eventEndTime = "${_endTime.hour}:${_endTime.minute}:00";
+                        final eventEndTime =
+                            "${_endTime.hour}:${_endTime.minute}:00";
 
                         final isAllDay = _isAllDay;
 
