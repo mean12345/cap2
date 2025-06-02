@@ -638,6 +638,10 @@ class _WorkListState extends State<WorkList> {
             color: AppColors.green.withOpacity(0.1),
             shape: BoxShape.circle,
           ),
+          todayTextStyle: TextStyle(
+            color: Colors.black87,
+            fontWeight: FontWeight.bold,
+          ),
           selectedDecoration: BoxDecoration(
             border: Border.all(color: AppColors.green, width: 2),
             shape: BoxShape.circle,
