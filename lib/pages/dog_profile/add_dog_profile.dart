@@ -326,10 +326,10 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
             : null,
       ),
       body: SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(0, 0, 0, bottomInset + 100),
+        padding: EdgeInsets.fromLTRB(0, 0, 0, bottomInset + 20),
         child: Column(
           children: [
-            const SizedBox(height: 80),
+            const SizedBox(height: 40),
             GestureDetector(
               onTap: _pickImage,
               child: Container(
@@ -403,7 +403,7 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
                 ],
               ),
             ),
-            SizedBox(height: 200),
+            SizedBox(height: 100),
           ],
         ),
       ),
