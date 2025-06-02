@@ -222,32 +222,52 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
     final bool? confirmed = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: AppColors.background,
+        return Dialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(5),
           ),
-          title: const Text('반려견 프로필 삭제'),
-          content: const Text(
-            '정말로 이 반려견 프로필을 삭제하시겠습니까?',
-            style: TextStyle(fontSize: 18), // 글씨 크기 키움
+          child: Container(
+            padding: EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(5),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '삭제 확인',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 25),
+                Text('이 반려견 프로필을 삭제하시겠습니까?'),
+                SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    TextButton(
+                      child: Text(
+                        '취소',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                      onPressed: () => Navigator.of(context).pop(false),
+                    ),
+                    SizedBox(width: 30),
+                    TextButton(
+                      child: Text(
+                        '삭제',
+                        style: TextStyle(color: Color(0xFF4DA374)),
+                      ),
+                      onPressed: () => Navigator.of(context).pop(true),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text(
-                '취소',
-                style: TextStyle(color: Colors.grey),
-              ),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text(
-                '삭제',
-                style: TextStyle(color: Colors.red),
-              ),
-            ),
-          ],
         );
       },
     );
@@ -394,7 +414,7 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
         child: ElevatedButton(
           onPressed: _isUpdating ? _updateDogProfile : _saveDogProfile,
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.olivegreen,
+            backgroundColor: AppColors.lightgreen,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(5),
             ),
