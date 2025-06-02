@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:dangq/colors.dart';
 import 'package:dangq/login/widget_login.dart';
-import 'package:dangq/login/login.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -18,18 +17,15 @@ class _JoinState extends BaseLoginState<Join> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController idController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  final TextEditingController confirmPasswordController =
-      TextEditingController();
+  final TextEditingController confirmPasswordController = TextEditingController();
 
   bool _isPasswordObscure = true;
   bool _isConfirmPasswordObscure = true;
 
   @override
   Widget build(BuildContext context) {
-    final bool isKeyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
-
     return Scaffold(
-      resizeToAvoidBottomInset: true,
+      resizeToAvoidBottomInset: false, // 레이아웃 변경 방지
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.grey[100],
@@ -43,27 +39,29 @@ class _JoinState extends BaseLoginState<Join> {
       ),
       body: Stack(
         children: [
-          Transform.translate(
-            offset: Offset(0, isKeyboardVisible ? 100 : 10),
-            child: Center(
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 45.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    buildNicknameTextField(),
-                    SizedBox(height: 7),
-                    buildEmailTextField(),
-                    SizedBox(height: 7),
-                    buildIdTextField(),
-                    SizedBox(height: 7),
-                    buildPasswordTextField(),
-                    SizedBox(height: 7),
-                    buildPasswordAgainTextField(),
-                    SizedBox(height: 7),
-                    buildjoinButton(),
-                  ],
-                ),
+          Center(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.only(
+                left: 45,
+                right: 45,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 30,
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  buildNicknameTextField(),
+                  SizedBox(height: 7),
+                  buildEmailTextField(),
+                  SizedBox(height: 7),
+                  buildIdTextField(),
+                  SizedBox(height: 7),
+                  buildPasswordTextField(),
+                  SizedBox(height: 7),
+                  buildPasswordAgainTextField(),
+                  SizedBox(height: 20),
+                  buildjoinButton(),
+                  SizedBox(height: 20),
+                ],
               ),
             ),
           ),
@@ -72,45 +70,10 @@ class _JoinState extends BaseLoginState<Join> {
     );
   }
 
-  // 닉네임 입력
-  Widget buildNicknameTextField() {
-    return Container(
-      decoration: buildShadowBox(),
-      child: TextField(
-        controller: usernameController,
-        decoration: InputDecoration(
-          hintText: '닉네임',
-          hintStyle: TextStyle(color: Colors.grey),
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(),
-          focusedBorder: buildInputBorder(AppColors.olivegreen, 2.0),
-          enabledBorder: buildInputBorder(Colors.grey, 1.0),
-        ),
-      ),
-    );
-  }
+  Widget buildNicknameTextField() => buildTextField(usernameController, '닉네임');
+  Widget buildEmailTextField() => buildTextField(emailController, '이메일');
+  Widget buildIdTextField() => buildTextField(idController, '아이디');
 
-  // 아이디 입력
-  Widget buildIdTextField() {
-    return Container(
-      decoration: buildShadowBox(),
-      child: TextField(
-        controller: idController,
-        decoration: InputDecoration(
-          hintText: '아이디',
-          hintStyle: TextStyle(color: Colors.grey),
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(),
-          focusedBorder: buildInputBorder(AppColors.olivegreen, 2.0),
-          enabledBorder: buildInputBorder(Colors.grey, 1.0),
-        ),
-      ),
-    );
-  }
-
-  // 비밀번호 입력
   Widget buildPasswordTextField() {
     return Container(
       decoration: buildShadowBox(),
@@ -126,17 +89,14 @@ class _JoinState extends BaseLoginState<Join> {
           focusedBorder: buildInputBorder(AppColors.olivegreen, 2.0),
           enabledBorder: buildInputBorder(Colors.grey, 1.0),
           suffixIcon: IconButton(
-            icon: Icon(
-                _isPasswordObscure ? Icons.visibility_off : Icons.visibility),
-            onPressed: () =>
-                setState(() => _isPasswordObscure = !_isPasswordObscure),
+            icon: Icon(_isPasswordObscure ? Icons.visibility_off : Icons.visibility),
+            onPressed: () => setState(() => _isPasswordObscure = !_isPasswordObscure),
           ),
         ),
       ),
     );
   }
 
-  // 비밀번호 확인 입력
   Widget buildPasswordAgainTextField() {
     return Container(
       decoration: buildShadowBox(),
@@ -152,25 +112,21 @@ class _JoinState extends BaseLoginState<Join> {
           focusedBorder: buildInputBorder(AppColors.olivegreen, 2.0),
           enabledBorder: buildInputBorder(Colors.grey, 1.0),
           suffixIcon: IconButton(
-            icon: Icon(_isConfirmPasswordObscure
-                ? Icons.visibility_off
-                : Icons.visibility),
-            onPressed: () => setState(
-                () => _isConfirmPasswordObscure = !_isConfirmPasswordObscure),
+            icon: Icon(_isConfirmPasswordObscure ? Icons.visibility_off : Icons.visibility),
+            onPressed: () => setState(() => _isConfirmPasswordObscure = !_isConfirmPasswordObscure),
           ),
         ),
       ),
     );
   }
 
-  // 이메일 입력
-  Widget buildEmailTextField() {
+  Widget buildTextField(TextEditingController controller, String hintText) {
     return Container(
       decoration: buildShadowBox(),
       child: TextField(
-        controller: emailController,
+        controller: controller,
         decoration: InputDecoration(
-          hintText: '이메일',
+          hintText: hintText,
           hintStyle: TextStyle(color: Colors.grey),
           filled: true,
           fillColor: Colors.white,
@@ -185,14 +141,11 @@ class _JoinState extends BaseLoginState<Join> {
   Widget buildjoinButton() {
     return ElevatedButton(
       onPressed: () async {
-        // 회원가입 요청
         final baseUrl = dotenv.get('BASE_URL');
         final response = await http.post(
           Uri.parse('$baseUrl/users'),
-          headers: <String, String>{
-            'Content-Type': 'application/json; charset=UTF-8',
-          },
-          body: jsonEncode(<String, String>{
+          headers: {'Content-Type': 'application/json; charset=UTF-8'},
+          body: jsonEncode({
             'nickname': usernameController.text,
             'email': emailController.text,
             'username': idController.text,
@@ -201,12 +154,9 @@ class _JoinState extends BaseLoginState<Join> {
         );
 
         if (response.statusCode == 201) {
-          // 성공적으로 회원가입 후 로그인 화면으로 이동
           Navigator.pop(context);
         } else {
-          // 오류 처리
-          final errorMessage =
-              jsonDecode(response.body)['message'] ?? '회원가입 실패';
+          final errorMessage = jsonDecode(response.body)['message'] ?? '회원가입 실패';
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('회원가입 실패: $errorMessage')),
           );
