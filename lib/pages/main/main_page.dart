@@ -268,14 +268,14 @@ class _MainPageState extends State<MainPage> {
           color: Colors.white,
           child: Column(
             children: [
-              const SizedBox(height: 20), // 상단 여백 조정
+              const SizedBox(height: 40), // 20에서 40으로 수정
               _buildDogProfileSection(),
-              const SizedBox(height: 25), // 여백 조정
+              const SizedBox(height: 45), // 여백 조정
               _buildWalkButton(),
               const Spacer(),
               Container(
                 color: Colors.white,
-                padding: const EdgeInsets.only(bottom: 24),
+                padding: const EdgeInsets.only(bottom: 50),
                 child: Column(
                   children: [
                     const SizedBox(height: 40),
