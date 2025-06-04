@@ -96,6 +96,12 @@ class _LoginState extends BaseLoginState<Login> {
   Widget buildLoginButton() {
     return ElevatedButton(
       onPressed: () async {
+        // 키보드 숨기기
+        FocusScope.of(context).unfocus();
+        
+        // 키보드가 완전히 내려갈 때까지 잠시 대기
+        await Future.delayed(const Duration(milliseconds: 100));
+
         final String baseUrl = dotenv.get('BASE_URL');
 
         final response = await http.post(
@@ -104,27 +110,31 @@ class _LoginState extends BaseLoginState<Login> {
             'Content-Type': 'application/json; charset=UTF-8',
           },
           body: jsonEncode(<String, String>{
-            'username': usernameController.text, // 입력된 아이디 값
-            'password': passwordController.text, // 입력된 비밀번호 값
+            'username': usernameController.text,
+            'password': passwordController.text,
           }),
         );
 
         if (response.statusCode == 200) {
-          // 로그인 성공 시 메인 화면으로 이동
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => MainPage(
-                username: usernameController.text,
+          // 키보드가 완전히 내려간 후 메인 화면으로 이동
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => MainPage(
+                  username: usernameController.text,
+                ),
               ),
-            ),
-          );
+            );
+          }
         } else {
           // 오류 처리
           final errorMessage = jsonDecode(response.body)['message'] ?? '로그인 실패';
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('로그인 실패: $errorMessage')),
-          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('로그인 실패: $errorMessage')),
+            );
+          }
         }
       },
       style: ElevatedButton.styleFrom(

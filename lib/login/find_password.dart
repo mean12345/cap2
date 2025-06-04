@@ -52,15 +52,44 @@ class _FindPasswordState extends BaseLoginState<FindPassword> {
     print("오류 발생: $message");
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('오류'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('확인'),
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(5),
+        ),
+        child: Container(
+          padding: EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(5),
           ),
-        ],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '오류',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              SizedBox(height: 25),
+              Text(message),
+              SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  TextButton(
+                    child: Text(
+                      '확인',
+                      style: TextStyle(color: Color(0xFF4DA374)),
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -204,20 +233,27 @@ class _FindPasswordState extends BaseLoginState<FindPassword> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.grey[100],
         scrolledUnderElevation: 0,
-        surfaceTintColor: Colors.transparent,
-        title: Text('비밀번호 찾기', style: TextStyle(color: Colors.black)),
+        title: const Text(
+          '비밀번호 찾기',
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 18,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
+        backgroundColor: Colors.grey[100],
+        elevation: 0,
       ),
       resizeToAvoidBottomInset: true,
       body: Stack(
         children: [
           Transform.translate(
-            offset: Offset(0, isKeyboardVisible ? 100 : 30),
+            offset: Offset(0, isKeyboardVisible ? 30 : -40),
             child: Center(
               child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: 45.0),
