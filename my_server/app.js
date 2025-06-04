@@ -14,7 +14,7 @@ const commentsRouter = require('./routes/comments');
 const relationshipsRouter = require('./routes/relationships');
 const calendarRoutes = require('./routes/calendar');
 const dogRoutes = require('./routes/dog');
-
+const navigationRouter = require('./routes/navigation');
 const app = express();
 
 app.use(cors());
@@ -31,6 +31,7 @@ app.use('/comments', commentsRouter);
 app.use('/relationships', relationshipsRouter);
 app.use('/calendar', calendarRoutes);
 app.use('/dogs', dogRoutes);
+app.use('/direction', navigationRouter);
 
 // 정적 파일 제공
 app.use('/uploads', express.static('uploads'));

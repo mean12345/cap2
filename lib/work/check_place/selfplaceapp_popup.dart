@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:dangq/colors.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:kpostal/kpostal.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class AddPlaceDialog extends StatefulWidget {
   final String username;
@@ -25,7 +25,6 @@ class _AddPlaceDialogState extends State<AddPlaceDialog> {
   double? longitude;
 
   void _saveMarker() async {
-    // markerName 생성
     String markerName = 'marker_${DateTime.now().millisecondsSinceEpoch}';
     String? markerType;
     String imageAsset = '';
@@ -51,16 +50,14 @@ class _AddPlaceDialogState extends State<AddPlaceDialog> {
 
     if (markerType == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('장소 종류를 선택해주세요'), duration: Duration(seconds: 2)),
+        SnackBar(content: Text('장소 종류를 선택해주세요'), duration: Duration(seconds: 2)),
       );
       return;
     }
 
     if (latitude == null || longitude == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('위치 정보가 올바르지 않습니다.'), duration: Duration(seconds: 2)),
+        SnackBar(content: Text('위치 정보가 올바르지 않습니다.'), duration: Duration(seconds: 2)),
       );
       return;
     }
@@ -75,7 +72,6 @@ class _AddPlaceDialogState extends State<AddPlaceDialog> {
 
     if (result == 1) {
       if (widget.onMarkerAdded != null) {
-        // markerType, imageAsset, markerText, textColor 모두 전달
         widget.onMarkerAdded!(
           markerName,
           latitude!,
@@ -128,6 +124,17 @@ class _AddPlaceDialogState extends State<AddPlaceDialog> {
       isDangerous = false;
       isFavorite = value ?? false;
     });
+  }
+
+  Future<void> _launchNaverSearch() async {
+    final url = Uri.parse("https://m.map.naver.com/search2/search.naver?query=%EC%A3%BC%EC%86%8C&type=SITE_1");
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("네이버 지도 열기에 실패했습니다.")),
+      );
+    }
   }
 
   @override
@@ -291,25 +298,7 @@ class _AddPlaceDialogState extends State<AddPlaceDialog> {
               Expanded(
                 flex: 1,
                 child: ElevatedButton(
-                  onPressed: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => KpostalView(
-                          useLocalServer: true,
-                          localPort: 1024,
-                          callback: (Kpostal result) {
-                            setState(() {
-                              postCode = result.postCode ?? '';
-                              address = result.address ?? '';
-                              latitude = result.latitude;
-                              longitude = result.longitude;
-                            });
-                          },
-                        ),
-                      ),
-                    );
-                  },
+                  onPressed: _launchNaverSearch,
                   style: ElevatedButton.styleFrom(
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(5),
