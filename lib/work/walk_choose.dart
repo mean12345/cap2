@@ -10,6 +10,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:http/http.dart' as http;
 import 'package:dangq/pages/navigation/route_select_page.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:dangq/work/work_self/draggable_dst/draggable_dst.dart'; // MarkerManager import 추가
 
 class WalkChoose extends StatefulWidget {
   final String username;
@@ -34,14 +36,14 @@ class WalkChooseState extends State<WalkChoose> {
   late int _selectedDogId;
   late String _selectedDogName;
   String _selectedDogImageUrl = '';
-  final String baseUrl =
-      dotenv.env['BASE_URL']!; // ex: "http://114.71.1.183:3000"
+  final String baseUrl = dotenv.env['BASE_URL']!;
 
   // ─────────────────────────────────────────────────────────
   // 1) NaverMapController와 최종 경로 좌표를 저장할 변수
   // ─────────────────────────────────────────────────────────
   NaverMapController? _mapController;
   List<NLatLng> _routeCoords = [];
+  MarkerManager? _markerManager; // 추가
 
   @override
   void initState() {
@@ -117,6 +119,24 @@ class WalkChooseState extends State<WalkChoose> {
     }
   }
 
+  Future<NLatLng?> _getCurrentLocation() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return null;
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      permission = await Geolocator.requestPermission();
+      if (permission != LocationPermission.whileInUse &&
+          permission != LocationPermission.always) {
+        return null;
+      }
+    }
+
+    Position position = await Geolocator.getCurrentPosition();
+    return NLatLng(position.latitude, position.longitude);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -124,14 +144,8 @@ class WalkChooseState extends State<WalkChoose> {
       appBar: AppBar(
         toolbarHeight: MediaQuery.of(context).size.height * 0.05,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black, size: 35),
-          onPressed: () {
-            Navigator.pop(context, {
-              'dogId': _selectedDogId,
-              'dogName': _selectedDogName,
-              'imageUrl': _selectedDogImageUrl,
-            });
-          },
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -143,14 +157,65 @@ class WalkChooseState extends State<WalkChoose> {
           // (1) NaverMap 위젯: 컨트롤러 취득
           // ────────────────────────────────────────────────────
           NaverMap(
-            onMapReady: (controller) {
+            onMapReady: (controller) async {
               _mapController = controller;
+
+              // MarkerManager 초기화 추가
+              _markerManager = MarkerManager(
+                mapController: controller,
+                username: widget.username,
+                showDeleteConfirmationDialog: (markerName, markerId) {
+                  showDialog(
+                    context: context,
+                    builder: (BuildContext context) {
+                      return AlertDialog(
+                        title: const Text('마커 삭제'),
+                        content: const Text('이 마커를 삭제하시겠습니까?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            child: const Text('취소'),
+                          ),
+                          TextButton(
+                            onPressed: () async {
+                              await _markerManager
+                                  ?.deleteMarkerFromDB(markerName);
+                              await _mapController?.clearOverlays();
+                              await _markerManager?.loadMarkers();
+                              Navigator.of(context).pop();
+                            },
+                            child: const Text('삭제'),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                },
+              );
+
+              // 현재 위치 가져오기
+              final currentLocation = await _getCurrentLocation();
+              if (currentLocation != null) {
+                await controller.updateCamera(
+                  NCameraUpdate.withParams(
+                    target: currentLocation,
+                    zoom: 15,
+                    bearing: 0,
+                    tilt: 0,
+                  ),
+                );
+              }
+
+              // 마커 로드
+              await _markerManager?.loadMarkers();
             },
             options: const NaverMapViewOptions(
               locationButtonEnable: false,
+              indoorEnable: false,
+              scaleBarEnable: false,
               initialCameraPosition: NCameraPosition(
-                target: NLatLng(37.5666102, 126.9783881),
-                zoom: 15,
+                target: NLatLng(35.853488, 128.488708),
+                zoom: 14,
               ),
             ),
           ),
@@ -178,7 +243,11 @@ class WalkChooseState extends State<WalkChoose> {
                         final routeResult = await Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const RouteWithStopoverPage(),
+                            builder: (context) => RouteWithStopoverPage(
+                              username: widget.username,
+                              dogId: _selectedDogId,
+                              dogName: _selectedDogName,
+                            ),
                           ),
                         );
 

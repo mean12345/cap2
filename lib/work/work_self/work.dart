@@ -99,11 +99,7 @@ class _WorkState extends State<Work> {
         appBar: AppBar(
           toolbarHeight: MediaQuery.of(context).size.height * 0.05,
           leading: IconButton(
-            icon: Icon(
-              Icons.arrow_back,
-              color: Colors.black,
-              size: 35,
-            ),
+            icon: const Icon(Icons.arrow_back),
             onPressed: () {
               Navigator.pop(context);
             },
