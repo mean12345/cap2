@@ -286,7 +286,7 @@ class _FindIdState extends BaseLoginState<FindId> {
       body: Stack(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(45.0, 100.0, 45.0, 45.0),
+            padding: const EdgeInsets.fromLTRB(45.0, 72.0, 45.0, 45.0),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -360,6 +360,7 @@ class _FindIdState extends BaseLoginState<FindId> {
                 decoration: buildShadowBox(),
                 child: TextField(
                   controller: _certifyController,
+                  scrollPadding: const EdgeInsets.only(bottom: 40), // 추가
                   decoration: InputDecoration(
                     hintText: '인증번호',
                     hintStyle: TextStyle(color: Colors.grey),
