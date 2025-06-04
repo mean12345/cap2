@@ -105,19 +105,14 @@ router.delete('/:username', async (req, res) => {
                 .json({ message: '사용자를 찾을 수 없습니다.' });
         }
 
-        const userId = user[0].user_id;
-        const userRole = user[0].role;
-
-        // 사용자의 게시글 ID 조회
+        // 사용자의 게시글에 연결된 이미지 파일 삭제
         const [posts] = await db
             .promise()
-            .query('SELECT post_id, image_url FROM posts WHERE user_id = ?', [
-                userId,
+            .query('SELECT image_url FROM posts WHERE user_id = ?', [
+                user[0].user_id,
             ]);
 
-        const postIds = posts.map((post) => post.post_id);
-
-        // 게시글 이미지 삭제
+        // 이미지 파일 삭제
         for (const post of posts) {
             if (post.image_url) {
                 const imagePath = post.image_url.split('/uploads/')[1];
@@ -128,56 +123,42 @@ router.delete('/:username', async (req, res) => {
             }
         }
 
-        // 🔽 게시글에 달린 댓글 삭제
-        if (postIds.length > 0) {
-            await db
-                .promise()
-                .query(
-                    `DELETE FROM comments WHERE post_id IN (${postIds
-                        .map(() => '?')
-                        .join(',')})`,
-                    postIds
-                );
-        }
-
-        // 게시글 삭제
+        // 사용자의 게시글 삭제
         await db
             .promise()
-            .query('DELETE FROM posts WHERE user_id = ?', [userId]);
+            .query('DELETE FROM posts WHERE user_id = ?', [user[0].user_id]);
 
         // 리더인 경우 초대 코드 삭제
-        if (userRole === 'leader') {
+        if (user[0].role === 'leader') {
             await db
                 .promise()
                 .query('DELETE FROM connection_codes WHERE leader_id = ?', [
-                    userId,
+                    user[0].user_id,
                 ]);
         }
 
         // 연동 관계 삭제
-        if (userRole === 'leader') {
+        // 리더인 경우 모든 멤버와의 관계 삭제
+        if (user[0].role === 'leader') {
             await db
                 .promise()
                 .query('DELETE FROM relationships WHERE leader_id = ?', [
-                    userId,
+                    user[0].user_id,
                 ]);
-        } else {
+        }
+        // 멤버인 경우 리더와의 관계 삭제
+        else {
             await db
                 .promise()
                 .query('DELETE FROM relationships WHERE member_id = ?', [
-                    userId,
+                    user[0].user_id,
                 ]);
         }
 
-        // tracking_data 삭제
+        // 사용자 계정 삭제
         await db
             .promise()
-            .query('DELETE FROM tracking_data WHERE user_id = ?', [userId]);
-
-        // 사용자 삭제
-        await db
-            .promise()
-            .query('DELETE FROM users WHERE user_id = ?', [userId]);
+            .query('DELETE FROM users WHERE user_id = ?', [user[0].user_id]);
 
         await db.promise().query('COMMIT');
         res.status(200).json({ message: '계정이 성공적으로 삭제되었습니다.' });

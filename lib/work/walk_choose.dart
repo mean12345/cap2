@@ -1,13 +1,15 @@
+// lib/work/walk_choose.dart
+
 import 'dart:convert';
 import 'package:dangq/colors.dart';
-import 'package:dangq/work/work_self/work.dart';
-import 'package:dangq/work/dog_list.dart'; // DogListPage import
+import 'package:dangq/work/work_self/work.dart'; // 이미 구현된 Work 화면
+import 'package:dangq/work/dog_list.dart'; // 이미 구현된 DogListPage
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/services.dart'; // SystemUiOverlayStyle 사용
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:http/http.dart' as http;
-import 'package:dangq/work/marker_manager.dart';
+import 'package:dangq/pages/navigation/route_select_page.dart';
 
 class WalkChoose extends StatefulWidget {
   final String username;
@@ -25,46 +27,28 @@ class WalkChoose extends StatefulWidget {
   State<WalkChoose> createState() => WalkChooseState();
 }
 
-class WalkChooseState extends State<WalkChoose> with WidgetsBindingObserver {
+class WalkChooseState extends State<WalkChoose> {
   List<Map<String, dynamic>> dogProfiles = [];
   bool _isLoading = false;
-  late NaverMapController _mapController;
-  MarkerManager? _markerManager;
 
-  // 현재 선택된 강아지 정보
   late int _selectedDogId;
   late String _selectedDogName;
   String _selectedDogImageUrl = '';
+  final String baseUrl =
+      dotenv.env['BASE_URL']!; // ex: "http://114.71.1.183:3000"
 
-  final String baseUrl = dotenv.env['BASE_URL']!;
+  // ─────────────────────────────────────────────────────────
+  // 1) NaverMapController와 최종 경로 좌표를 저장할 변수
+  // ─────────────────────────────────────────────────────────
+  NaverMapController? _mapController;
+  List<NLatLng> _routeCoords = [];
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _selectedDogId = widget.dogId;
     _selectedDogName = widget.dogName;
     _fetchDogProfiles();
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _reloadMarkers();
-    }
-  }
-
-  Future<void> _reloadMarkers() async {
-    if (_mapController != null && _markerManager != null) {
-      await _mapController.clearOverlays();
-      await _markerManager?.loadMarkers();
-    }
   }
 
   void _updateSelectedDog(int dogId, String dogName, String imageUrl) {
@@ -91,7 +75,6 @@ class WalkChooseState extends State<WalkChoose> with WidgetsBindingObserver {
         });
         return;
       }
-
       if (response.statusCode == 200) {
         final List<dynamic> jsonResponse = json.decode(response.body);
         setState(() {
@@ -117,7 +100,6 @@ class WalkChooseState extends State<WalkChoose> with WidgetsBindingObserver {
           _selectedDogId = selectedDog['id'];
           _selectedDogName = selectedDog['dog_name'];
           _selectedDogImageUrl = selectedDog['image_url'] ?? '';
-
           _isLoading = false;
         });
       } else {
@@ -137,216 +119,345 @@ class WalkChooseState extends State<WalkChoose> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      home: Scaffold(
-        extendBodyBehindAppBar: true,
-        appBar: AppBar(
-          toolbarHeight: MediaQuery.of(context).size.height * 0.05,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.black, size: 35),
-            onPressed: () async {
-              await _reloadMarkers();
-              Navigator.pop(context, {
-                'dogId': _selectedDogId,
-                'dogName': _selectedDogName,
-                'imageUrl': _selectedDogImageUrl,
-              });
-            },
-          ),
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          systemOverlayStyle: SystemUiOverlayStyle.dark,
+    return Scaffold(
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        toolbarHeight: MediaQuery.of(context).size.height * 0.05,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black, size: 35),
+          onPressed: () {
+            Navigator.pop(context, {
+              'dogId': _selectedDogId,
+              'dogName': _selectedDogName,
+              'imageUrl': _selectedDogImageUrl,
+            });
+          },
         ),
-        body: Stack(
-          children: [
-            NaverMap(
-              onMapReady: (controller) async {
-                controller
-                    .setLocationTrackingMode(NLocationTrackingMode.follow);
-                _mapController = controller;
-                _markerManager = MarkerManager(
-                  mapController: controller,
-                  username: widget.username,
-                  showDeleteConfirmationDialog: (markerName, markerId) {
-                    showDialog(
-                      context: context,
-                      builder: (BuildContext context) {
-                        return AlertDialog(
-                          backgroundColor: AppColors.background,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(5),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        systemOverlayStyle: SystemUiOverlayStyle.dark,
+      ),
+      body: Stack(
+        children: [
+          // ────────────────────────────────────────────────────
+          // (1) NaverMap 위젯: 컨트롤러 취득
+          // ────────────────────────────────────────────────────
+          NaverMap(
+            onMapReady: (controller) {
+              _mapController = controller;
+            },
+            options: const NaverMapViewOptions(
+              locationButtonEnable: false,
+              initialCameraPosition: NCameraPosition(
+                target: NLatLng(37.5666102, 126.9783881),
+                zoom: 15,
+              ),
+            ),
+          ),
+
+          // ────────────────────────────────────────────────────
+          // (2) 하단 패널: “경로 추천 받기” / “산책하기” 버튼 및 프로필
+          // ────────────────────────────────────────────────────
+          Positioned(
+            bottom: 0,
+            child: Container(
+              width: MediaQuery.of(context).size.width,
+              height: MediaQuery.of(context).size.height * 0.25,
+              decoration: const BoxDecoration(color: Colors.white),
+              child: Padding(
+                padding: const EdgeInsets.only(top: 35),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // ────────────────────────────────────────────
+                    // (2-1) “경로 추천 받기” 버튼
+                    // ────────────────────────────────────────────
+                    GestureDetector(
+                      onTap: () async {
+                        // ① 출발/도착/경유지 화면을 거쳐 allPoints 받아오기
+                        final routeResult = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const RouteWithStopoverPage(),
                           ),
-                          title: const Text('마커 삭제'),
-                          content: const Text('이 마커를 삭제하시겠습니까?'),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.of(context).pop(),
-                              style: TextButton.styleFrom(
-                                  foregroundColor: AppColors.green),
-                              child: const Text('취소'),
-                            ),
-                            TextButton(
-                              onPressed: () async {
-                                await _markerManager
-                                    ?.deleteMarkerFromDB(markerName);
-                                await _mapController.clearOverlays();
-                                await _markerManager?.loadMarkers();
-                                setState(() {});
-                                Navigator.of(context).pop();
-                              },
-                              style: TextButton.styleFrom(
-                                  foregroundColor: AppColors.green),
-                              child: const Text('삭제'),
-                            ),
-                          ],
                         );
-                      },
-                    );
-                  },
-                );
-                await _markerManager?.loadMarkers();
-              },
-              options: const NaverMapViewOptions(
-                locationButtonEnable: false,
-                initialCameraPosition: NCameraPosition(
-                  target: NLatLng(37.5666102, 126.9783881),
-                  zoom: 15,
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: 0,
-              child: Container(
-                width: MediaQuery.of(context).size.width,
-                height: MediaQuery.of(context).size.height * 0.25,
-                decoration: const BoxDecoration(color: Colors.white),
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 35),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _buildOptionButton('경로 추천 받기'),
-                      _buildOptionButton('산책하기'),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: MediaQuery.of(context).size.height * 0.19,
-              left: 15,
-              child: GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => DogListPage(
-                        username: widget.username,
-                        onDogSelected: (int id, String name, String imageUrl) {
-                          _updateSelectedDog(id, name, imageUrl);
-                        },
-                      ),
-                    ),
-                  );
-                },
-                child: Container(
-                  width: 100,
-                  height: 100,
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: _isLoading
-                        ? const CircularProgressIndicator()
-                        : _selectedDogImageUrl.isEmpty
-                            ? const Icon(Icons.pets,
-                                size: 50, color: Colors.grey)
-                            : ClipOval(
-                                child: Image.network(
-                                  _selectedDogImageUrl,
-                                  width: 85,
-                                  height: 85,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return const Icon(Icons.pets,
-                                        size: 50, color: Colors.grey);
-                                  },
+
+                        if (routeResult == null ||
+                            routeResult['allPoints'] == null) {
+                          // 뒤로 돌아오거나 경유지 선택 취소 시 아무 작업 안 함
+                          return;
+                        }
+                        final List<dynamic> allPoints =
+                            routeResult['allPoints'];
+
+                        // A) allPoints → List<NLatLng>
+                        List<NLatLng> baseRoute = allPoints.map((p) {
+                          return NLatLng(p['lat'], p['lng']);
+                        }).toList();
+
+                        // B) 서버의 /getPath 엔드포인트 호출
+                        try {
+                          final uri = Uri.parse('$baseUrl/getPath');
+                          final body = {
+                            'start': {
+                              'lat': baseRoute.first.latitude,
+                              'lng': baseRoute.first.longitude,
+                            },
+                            'end': {
+                              'lat': baseRoute.last.latitude,
+                              'lng': baseRoute.last.longitude,
+                            },
+                            'stopovers': baseRoute.length > 2
+                                ? baseRoute
+                                    .sublist(1, baseRoute.length - 1)
+                                    .map((pt) => {
+                                          'lat': pt.latitude,
+                                          'lng': pt.longitude,
+                                        })
+                                    .toList()
+                                : [],
+                          };
+
+                          final response = await http.post(
+                            uri,
+                            headers: {'Content-Type': 'application/json'},
+                            body: jsonEncode(body),
+                          );
+
+                          if (response.statusCode == 200) {
+                            final data = jsonDecode(response.body);
+                            final List<dynamic> path = data['path'];
+
+                            // [{lat, lng}, …] → List<NLatLng>
+                            final List<NLatLng> coords = path
+                                .map((p) => NLatLng(
+                                    (p['lat'] as num).toDouble(),
+                                    (p['lng'] as num).toDouble()))
+                                .toList();
+
+                            // 지도에 폴리라인 그리기
+                            await _drawRoute(coords);
+
+                            // Work 화면으로 이동
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => Work(
+                                  username: widget.username,
+                                  dogId: _selectedDogId,
+                                  dogName: _selectedDogName,
+                                  // 필요 시: pathCoords: coords
                                 ),
                               ),
-                  ),
+                            );
+                          } else {
+                            // API 호출 실패 시
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('경로 추천 실패 (서버 오류)')),
+                            );
+                          }
+                        } catch (e) {
+                          print('▶ 경로 추천 예외: $e');
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('경로 추천 중 오류가 발생했습니다.')),
+                          );
+                        }
+                      },
+                      child: Container(
+                        width: 300,
+                        height: 45,
+                        margin: const EdgeInsets.only(bottom: 15),
+                        decoration: BoxDecoration(
+                          color: AppColors.lightgreen,
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: const Center(
+                          child: Text(
+                            '경로 추천 받기',
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // ────────────────────────────────────────────
+                    // (2-2) “산책하기” 버튼: 기존 Work 화면으로 이동
+                    // ────────────────────────────────────────────
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => Work(
+                              username: widget.username,
+                              dogId: _selectedDogId,
+                              dogName: _selectedDogName,
+                            ),
+                          ),
+                        ).then((result) {
+                          if (result != null &&
+                              result is Map<String, dynamic>) {
+                            _updateSelectedDog(
+                              result['dogId'],
+                              result['dogName'],
+                              result['imageUrl'],
+                            );
+                          }
+                        });
+                      },
+                      child: Container(
+                        width: 300,
+                        height: 45,
+                        margin: const EdgeInsets.only(bottom: 15),
+                        decoration: BoxDecoration(
+                          color: AppColors.lightgreen,
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: const Center(
+                          child: Text(
+                            '산책하기',
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-            Positioned(
-              bottom: MediaQuery.of(context).size.height * 0.21,
-              left: 125,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _selectedDogName,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+          ),
+
+          // ─────────────────────────────────────────────────────────
+          // (3) 강아지 프로필 원형 (왼쪽)
+          // ─────────────────────────────────────────────────────────
+          Positioned(
+            bottom: MediaQuery.of(context).size.height * 0.19,
+            left: 15,
+            child: GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => DogListPage(
+                      username: widget.username,
+                      onDogSelected: (int id, String name, String imageUrl) {
+                        _updateSelectedDog(id, name, imageUrl);
+                      },
                     ),
                   ),
-                ],
+                );
+              },
+              child: Container(
+                width: 100,
+                height: 100,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: _isLoading
+                      ? const CircularProgressIndicator()
+                      : _selectedDogImageUrl.isEmpty
+                          ? const Icon(Icons.pets, size: 50, color: Colors.grey)
+                          : ClipOval(
+                              child: Image.network(
+                                _selectedDogImageUrl,
+                                width: 85,
+                                height: 85,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const Icon(Icons.pets,
+                                      size: 50, color: Colors.grey);
+                                },
+                              ),
+                            ),
+                ),
               ),
             ),
-          ],
-        ),
+          ),
+
+          // ─────────────────────────────────────────────────────────
+          // (4) 강아지 이름 텍스트
+          // ─────────────────────────────────────────────────────────
+          Positioned(
+            bottom: MediaQuery.of(context).size.height * 0.21,
+            left: 125,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _selectedDogName,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildOptionButton(String text) {
-    return GestureDetector(
-      onTap: () async {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => Work(
-              username: widget.username,
-              dogId: _selectedDogId,
-              dogName: _selectedDogName,
-            ),
-          ),
-        ).then((result) async {
-          if (result != null && result is Map<String, dynamic>) {
-            _updateSelectedDog(
-              result['dogId'],
-              result['dogName'],
-              result['imageUrl'],
-            );
-          }
-          // Work 페이지에서 돌아올 때 마커 다시 로드
-          if (_mapController != null && _markerManager != null) {
-            await _mapController.clearOverlays();
-            await _markerManager?.loadMarkers();
-            setState(() {}); // UI 업데이트를 위해 setState 호출
-          }
-        });
-      },
-      child: Container(
-        width: 300,
-        height: 45,
-        margin: const EdgeInsets.only(bottom: 15),
-        decoration: BoxDecoration(
-          color: AppColors.lightgreen,
-          borderRadius: BorderRadius.circular(5),
-        ),
-        child: Center(
-          child: Text(
-            text,
-            style: const TextStyle(
-              color: Colors.black,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-      ),
+  /// ─────────────────────────────────────────────────────────
+  /// 지도에 폴리라인+마커 그리기
+  /// ─────────────────────────────────────────────────────────
+  Future<void> _drawRoute(List<NLatLng> coords) async {
+    if (_mapController == null || coords.isEmpty) return;
+
+    // (1) 모든 오버레이(마커+폴리라인) 제거
+    await _mapController!.clearOverlays();
+
+    // (2) 파란색 폴리라인 추가
+    final polyline = NPolylineOverlay(
+      id: 'recommended_route',
+      coords: coords,
+      width: 5,
+      color: Colors.blue,
     );
+    await _mapController!.addOverlay(polyline);
+
+    // (3) 출발지/도착지/경유지 마커 찍기
+    if (coords.isNotEmpty) {
+      // 출발지 마커 (파란색)
+      final startMarker = NMarker(
+        id: 'start_marker',
+        position: coords.first,
+        iconTintColor: Colors.blue,
+      );
+      await _mapController!.addOverlay(startMarker);
+    }
+    if (coords.length >= 2) {
+      // 도착지 마커 (초록색)
+      final endMarker = NMarker(
+        id: 'end_marker',
+        position: coords.last,
+        iconTintColor: Colors.green,
+      );
+      await _mapController!.addOverlay(endMarker);
+    }
+    // 경유지 마커 (노란색): 첫/마지막 제외
+    for (int i = 1; i < coords.length - 1; i++) {
+      final stopoverMarker = NMarker(
+        id: 'mid_$i',
+        position: coords[i],
+        iconTintColor: Colors.yellow,
+      );
+      await _mapController!.addOverlay(stopoverMarker);
+    }
+
+    setState(() {
+      _routeCoords = coords;
+    });
   }
 }

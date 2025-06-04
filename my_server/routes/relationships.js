@@ -11,7 +11,9 @@ router.delete('/member/:memberUsername', async (req, res) => {
     try {
         const [leader] = await db
             .promise()
-            .query('SELECT user_id, role FROM users WHERE username = ?', [username]);
+            .query('SELECT user_id, role FROM users WHERE username = ?', [
+                username,
+            ]);
 
         if (leader.length === 0 || leader[0].role !== 'leader') {
             return res.status(403).json({ message: '권한이 없습니다.' });
@@ -19,61 +21,53 @@ router.delete('/member/:memberUsername', async (req, res) => {
 
         const [member] = await db
             .promise()
-            .query('SELECT user_id FROM users WHERE username = ?', [req.params.memberUsername]);
+            .query('SELECT user_id FROM users WHERE username = ?', [
+                req.params.memberUsername,
+            ]);
 
         if (member.length === 0) {
-            return res.status(404).json({ message: '멤버를 찾을 수 없습니다.' });
+            return res
+                .status(404)
+                .json({ message: '멤버를 찾을 수 없습니다.' });
         }
-
-        const memberId = member[0].user_id;
 
         await db.promise().query('START TRANSACTION');
 
-        // 게시글과 post_id 가져오기
         const [posts] = await db
             .promise()
-            .query('SELECT post_id, image_url FROM posts WHERE user_id = ?', [memberId]);
+            .query('SELECT image_url FROM posts WHERE user_id = ?', [
+                member[0].user_id,
+            ]);
 
-        const postIds = posts.map(post => post.post_id);
-
-        // 게시글에 연결된 이미지 삭제
         for (const post of posts) {
             if (post.image_url) {
                 const imagePath = post.image_url.split('/uploads/')[1];
-                const fullPath = path.join(__dirname, '..', 'uploads', imagePath);
+                const fullPath = path.join(
+                    __dirname,
+                    '..',
+                    'uploads',
+                    imagePath
+                );
                 if (fs.existsSync(fullPath)) {
                     fs.unlinkSync(fullPath);
                 }
             }
         }
 
-        // 🔽 댓글 먼저 삭제
-        if (postIds.length > 0) {
-            await db
-                .promise()
-                .query(
-                    `DELETE FROM comments WHERE post_id IN (${postIds.map(() => '?').join(',')})`,
-                    postIds
-                );
-        }
-
-        // 게시글 삭제
         await db
             .promise()
-            .query('DELETE FROM posts WHERE user_id = ?', [memberId]);
-
-        // 관계 삭제
+            .query('DELETE FROM posts WHERE user_id = ?', [member[0].user_id]);
         await db
             .promise()
-            .query('DELETE FROM relationships WHERE leader_id = ? AND member_id = ?', [
-                leader[0].user_id,
-                memberId
+            .query(
+                'DELETE FROM relationships WHERE leader_id = ? AND member_id = ?',
+                [leader[0].user_id, member[0].user_id]
+            );
+        await db
+            .promise()
+            .query('UPDATE users SET role = "leader" WHERE user_id = ?', [
+                member[0].user_id,
             ]);
-
-        // 멤버를 리더로 전환
-        await db
-            .promise()
-            .query('UPDATE users SET role = "leader" WHERE user_id = ?', [memberId]);
 
         await db.promise().query('COMMIT');
         res.status(200).json({ message: '멤버가 삭제되었습니다.' });
@@ -83,7 +77,6 @@ router.delete('/member/:memberUsername', async (req, res) => {
         res.status(500).json({ message: '멤버 삭제에 실패했습니다.' });
     }
 });
-
 
 // 멤버 탈퇴
 router.delete('/leave', async (req, res) => {
@@ -137,7 +130,11 @@ router.delete('/leave', async (req, res) => {
                 .query('DELETE FROM posts WHERE user_id = ?', [
                     member[0].user_id,
                 ]);
-
+            await db
+                .promise()
+                .query('DELETE FROM photos WHERE user_id = ?', [
+                    member[0].user_id,
+                ]);
             await db
                 .promise()
                 .query('DELETE FROM relationships WHERE member_id = ?', [
