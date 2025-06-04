@@ -7,6 +7,7 @@ import 'dart:async';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:dangq/login/login.dart';
 
 class FindId extends StatefulWidget {
   const FindId({super.key});
@@ -160,15 +161,47 @@ class _FindIdState extends BaseLoginState<FindId> {
           print("아이디 찾기 성공: ${data['user_id']}");
           showDialog(
             context: context,
-            builder: (context) => AlertDialog(
-              title: Text('아이디 찾기 성공'),
-              content: Text('아이디: ${data['user_id']}'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text('확인'),
+            builder: (context) => Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(5),
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(5),
                 ),
-              ],
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      '아이디 찾기 성공',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 25),
+                    Text('아이디: ${data['user_id']}'),
+                    const SizedBox(height: 20),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(context); // 다이얼로그 닫기
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const Login(),
+                          ),
+                        );
+                      },
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.grey[600],
+                      ),
+                      child: const Text('확인'),
+                    ),
+                  ],
+                ),
+              ),
             ),
           );
         } else {
@@ -253,7 +286,7 @@ class _FindIdState extends BaseLoginState<FindId> {
       body: Stack(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(45.0, 100.0, 45.0, 45.0),
+            padding: const EdgeInsets.fromLTRB(45.0, 72.0, 45.0, 45.0),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -327,6 +360,7 @@ class _FindIdState extends BaseLoginState<FindId> {
                 decoration: buildShadowBox(),
                 child: TextField(
                   controller: _certifyController,
+                  scrollPadding: const EdgeInsets.only(bottom: 40), // 추가
                   decoration: InputDecoration(
                     hintText: '인증번호',
                     hintStyle: TextStyle(color: Colors.grey),

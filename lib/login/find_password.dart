@@ -224,7 +224,7 @@ class _FindPasswordState extends BaseLoginState<FindPassword> {
       body: Stack(
         children: [
           Transform.translate(
-            offset: Offset(0, isKeyboardVisible ? 100 : 30),
+            offset: Offset(0, isKeyboardVisible ? 30 : -40),
             child: Center(
               child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: 45.0),
