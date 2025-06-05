@@ -178,89 +178,32 @@ class WalkChooseState extends State<WalkChoose> {
                         final routeResult = await Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const RouteWithStopoverPage(),
+                            builder: (context) => RouteWithStopoverPage(
+                              username: widget.username,
+                              dogId: widget.dogId,
+                            ),
                           ),
                         );
 
-                        if (routeResult == null ||
-                            routeResult['allPoints'] == null) {
-                          // 뒤로 돌아오거나 경유지 선택 취소 시 아무 작업 안 함
+                        // routeResult가 null이면 함수 종료
+                        if (routeResult == null) {
                           return;
                         }
-                        final List<dynamic> allPoints =
-                            routeResult['allPoints'];
 
-                        // A) allPoints → List<NLatLng>
-                        List<NLatLng> baseRoute = allPoints.map((p) {
-                          return NLatLng(p['lat'], p['lng']);
-                        }).toList();
-
-                        // B) 서버의 /getPath 엔드포인트 호출
-                        try {
-                          final uri = Uri.parse('$baseUrl/getPath');
-                          final body = {
-                            'start': {
-                              'lat': baseRoute.first.latitude,
-                              'lng': baseRoute.first.longitude,
-                            },
-                            'end': {
-                              'lat': baseRoute.last.latitude,
-                              'lng': baseRoute.last.longitude,
-                            },
-                            'stopovers': baseRoute.length > 2
-                                ? baseRoute
-                                    .sublist(1, baseRoute.length - 1)
-                                    .map((pt) => {
-                                          'lat': pt.latitude,
-                                          'lng': pt.longitude,
-                                        })
-                                    .toList()
-                                : [],
-                          };
-
-                          final response = await http.post(
-                            uri,
-                            headers: {'Content-Type': 'application/json'},
-                            body: jsonEncode(body),
-                          );
-
-                          if (response.statusCode == 200) {
-                            final data = jsonDecode(response.body);
-                            final List<dynamic> path = data['path'];
-
-                            // [{lat, lng}, …] → List<NLatLng>
-                            final List<NLatLng> coords = path
-                                .map((p) => NLatLng(
-                                    (p['lat'] as num).toDouble(),
-                                    (p['lng'] as num).toDouble()))
-                                .toList();
-
-                            // 지도에 폴리라인 그리기
-                            await _drawRoute(coords);
-
-                            // Work 화면으로 이동
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => Work(
-                                  username: widget.username,
-                                  dogId: _selectedDogId,
-                                  dogName: _selectedDogName,
-                                  // 필요 시: pathCoords: coords
-                                ),
+                        // 경로가 생성된 경우에만 Work 화면으로 이동
+                        if (routeResult is Map<String, dynamic> &&
+                            routeResult.containsKey('forwardPath') &&
+                            routeResult.containsKey('reversePath')) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => Work(
+                                username: widget.username,
+                                dogId: _selectedDogId,
+                                dogName: _selectedDogName,
+                                // 필요 시: pathCoords: coords
                               ),
-                            );
-                          } else {
-                            // API 호출 실패 시
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('경로 추천 실패 (서버 오류)')),
-                            );
-                          }
-                        } catch (e) {
-                          print('▶ 경로 추천 예외: $e');
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('경로 추천 중 오류가 발생했습니다.')),
+                            ),
                           );
                         }
                       },

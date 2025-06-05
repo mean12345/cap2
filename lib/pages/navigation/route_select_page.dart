@@ -5,9 +5,16 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:async'; // for Timer
+import 'package:dangq/work/work_self/draggable_dst/draggable_dst.dart'; // WorkDST 페이지 임포트
 
 class RouteWithStopoverPage extends StatefulWidget {
-  const RouteWithStopoverPage({super.key});
+  final String username;
+  final int dogId;
+  const RouteWithStopoverPage({
+    super.key,
+    required this.username,
+    required this.dogId,
+  });
 
   @override
   State<RouteWithStopoverPage> createState() => _RouteWithStopoverPageState();
@@ -257,6 +264,34 @@ class _RouteWithStopoverPageState extends State<RouteWithStopoverPage> {
             NLatLng(point['lat'].toDouble(), point['lng'].toDouble()))
         .toList();
 
+    // 시작점과 끝점 마커 추가
+    if (forwardPoints.isNotEmpty) {
+      final startMarker = NMarker(
+        id: 'route_start',
+        position: forwardPoints.first,
+        iconTintColor: Colors.blue,
+        caption: NOverlayCaption(
+          text: '출발',
+          color: Colors.blue,
+          textSize: 14,
+        ),
+      );
+      await _mapController!.addOverlay(startMarker);
+
+      final endMarker = NMarker(
+        id: 'route_end',
+        position: forwardPoints.last,
+        iconTintColor: Colors.red,
+        caption: NOverlayCaption(
+          text: '도착',
+          color: Colors.red,
+          textSize: 14,
+        ),
+      );
+      await _mapController!.addOverlay(endMarker);
+    }
+
+    // 경로 표시
     // 정방향 폴리라인 (파란색)
     _forwardRoutePolyline = NPolylineOverlay(
       id: 'forward_route',
@@ -320,9 +355,36 @@ class _RouteWithStopoverPageState extends State<RouteWithStopoverPage> {
       Navigator.of(context).pop(); // 로딩 다이얼로그 닫기
 
       if (responses[0].statusCode == 200 && responses[1].statusCode == 200) {
-        final forwardPath = jsonDecode(responses[0].body)['path'];
-        final reversePath = jsonDecode(responses[1].body)['path'];
-        await _displayBothRoutes(forwardPath, reversePath);
+        final forwardPath = jsonDecode(responses[0].body)['path'] as List;
+        final reversePath = jsonDecode(responses[1].body)['path'] as List;
+
+        // 타입 안전한 변환 로직으로 수정
+        final List<NLatLng> forwardPoints = List<NLatLng>.from(
+          forwardPath.map((point) => NLatLng(
+                (point['lat'] as num).toDouble(),
+                (point['lng'] as num).toDouble(),
+              )),
+        );
+
+        final List<NLatLng> reversePoints = List<NLatLng>.from(
+          reversePath.map((point) => NLatLng(
+                (point['lat'] as num).toDouble(),
+                (point['lng'] as num).toDouble(),
+              )),
+        );
+
+        // WorkDST로 이동하며 경로 전달
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => WorkDST(
+              username: widget.username,
+              dogId: widget.dogId,
+              forwardPath: forwardPoints,
+              reversePath: reversePoints,
+            ),
+          ),
+        );
       } else {
         throw Exception('경로 요청 실패');
       }
@@ -417,7 +479,7 @@ class _RouteWithStopoverPageState extends State<RouteWithStopoverPage> {
                     ),
                     onPressed: _requestBothRoutes,
                     icon: const Icon(Icons.navigation),
-                    label: const Text('양방향 경로 검색'),
+                    label: const Text('경로 추천'),
                   ),
                 ),
               ],
