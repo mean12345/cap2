@@ -1234,13 +1234,10 @@ class LocationTracker {
     if (durationSeconds == 0) return;
 
     final double averageSpeed = (totalDistance / durationSeconds) * 3.6;
-    final double roundedSpeed =
-        double.parse(averageSpeed.toStringAsFixed(2)); // 소수점 둘째 자리 반올림
+    final double roundedSpeed = double.parse(averageSpeed.toStringAsFixed(2));
 
     final String baseUrl = dotenv.get('BASE_URL');
-
     List<NLatLng> simplifiedPath = douglasPeucker(path, 10);
-
     List<Map<String, double>> pathJson = simplifiedPath
         .map((p) => {'latitude': p.latitude, 'longitude': p.longitude})
         .toList();
@@ -1260,12 +1257,14 @@ class LocationTracker {
         }),
       );
 
-      if (response.statusCode == 200) {
+      // 성공 응답 코드 범위 확장 (200, 201 모두 허용)
+      if (response.statusCode >= 200 && response.statusCode < 300) {
         debugPrint('트랙 데이터 저장 성공');
         debugPrint('총 거리: $totalDistance m');
         debugPrint('평균 속도: $roundedSpeed km/h');
       } else {
         debugPrint('트랙 데이터 저장 실패: ${response.statusCode}');
+        debugPrint('응답 내용: ${response.body}');
       }
     } catch (e) {
       debugPrint('트랙 데이터 저장 중 오류: $e');

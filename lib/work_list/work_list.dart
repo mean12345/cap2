@@ -7,6 +7,9 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:dangq/work/dog_list.dart';
+import 'package:flutter_naver_map/flutter_naver_map.dart';
+import 'dart:math'; // 추가: min, max 함수 사용을 위해
+import 'package:dangq/work/work_route.dart'; // 추가
 
 class WorkList extends StatefulWidget {
   final String username;
@@ -87,15 +90,7 @@ class _WorkListState extends State<WorkList> {
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
-
-        DateTime? parseKoreanDateTime(String dateStr) {
-          try {
-            final format = DateFormat('yyyy. M. d. a h:mm:ss', 'ko');
-            return format.parse(dateStr);
-          } catch (e) {
-            return null;
-          }
-        }
+        print('서버 응답 데이터: $data'); // 디버깅 추가
 
         setState(() {
           workItems = data.map((item) {
@@ -123,19 +118,49 @@ class _WorkListState extends State<WorkList> {
                 ? (DateTime.tryParse(createdAtStr) ?? DateTime.now())
                 : DateTime.now();
 
-            return {
-              'track_id': item['track_id']?.toString() ?? '',
-              'username': item['username']?.toString() ?? '',
-              'walkTime': _formatDuration(duration),
-              'walkTimeDuration': duration,
-              'distance': (distance / 1000).toStringAsFixed(2),
-              'distanceValue': distance / 1000,
-              'speed': speedValue.toStringAsFixed(2),
-              'speedValue': speedValue,
-              'created_at': createdAtDate.toIso8601String(),
-              'date': createdAtDate,
-            };
+            try {
+              var pathData = [];
+              if (item['path_data'] != null) {
+                if (item['path_data'] is String) {
+                  pathData = json.decode(item['path_data']);
+                } else {
+                  pathData = item['path_data'];
+                }
+                print('가공된 path_data: $pathData'); // 디버깅 추가
+              }
+
+              return {
+                'track_id': item['track_id']?.toString() ?? '',
+                'username': item['username']?.toString() ?? '',
+                'walkTime': _formatDuration(duration),
+                'walkTimeDuration': duration,
+                'distance': (distance / 1000).toStringAsFixed(2),
+                'distanceValue': distance / 1000,
+                'speed': speedValue.toStringAsFixed(2),
+                'speedValue': speedValue,
+                'created_at': createdAtDate.toIso8601String(),
+                'date': createdAtDate,
+                'path_data': pathData,
+              };
+            } catch (e) {
+              print('path_data 파싱 오류: $e');
+              return {
+                'track_id': item['track_id']?.toString() ?? '',
+                'username': item['username']?.toString() ?? '',
+                'walkTime': _formatDuration(duration),
+                'walkTimeDuration': duration,
+                'distance': (distance / 1000).toStringAsFixed(2),
+                'distanceValue': distance / 1000,
+                'speed': speedValue.toStringAsFixed(2),
+                'speedValue': speedValue,
+                'created_at': createdAtDate.toIso8601String(),
+                'date': createdAtDate,
+                'path_data': [],
+              };
+            }
           }).toList();
+
+          print('Fetched path data: ${workItems[0]['path_data']}'); // 디버깅용
 
           workoutsByDate = {};
           for (var item in workItems) {
@@ -159,6 +184,15 @@ class _WorkListState extends State<WorkList> {
       setState(() {
         isLoading = false;
       });
+    }
+  }
+
+  DateTime? parseKoreanDateTime(String dateStr) {
+    try {
+      final format = DateFormat('yyyy. M. d. a h:mm:ss', 'ko');
+      return format.parse(dateStr);
+    } catch (e) {
+      return null;
     }
   }
 
@@ -687,6 +721,7 @@ class _WorkListState extends State<WorkList> {
             speed: workout['speed'],
             username: workout['username'],
             createdAt: _formatDisplayDate(workout['created_at']),
+            pathData: workout['path_data'] ?? [], // 추가
             onDelete: () => _showDeleteConfirmation(workout),
           ),
         );
@@ -770,6 +805,7 @@ class WorkListItem extends StatelessWidget {
   final String speed;
   final String username;
   final String createdAt;
+  final List<dynamic> pathData; // 추가
   final VoidCallback? onDelete;
 
   const WorkListItem({
@@ -778,80 +814,93 @@ class WorkListItem extends StatelessWidget {
     required this.speed,
     required this.username,
     required this.createdAt,
+    required this.pathData, // 추가
     this.onDelete,
     Key? key,
   }) : super(key: key);
 
+  void _showPathOnMap(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => WorkRoute(pathData: pathData),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 180,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
-            spreadRadius: 1,
-            blurRadius: 3,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // 헤더
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      username,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+    return GestureDetector(
+      onTap: () => _showPathOnMap(context),
+      child: Container(
+        height: 180,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.2),
+              spreadRadius: 1,
+              blurRadius: 3,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // 헤더
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        username,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    SizedBox(width: 10),
-                    Text(
-                      createdAt,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey,
+                      SizedBox(width: 10),
+                      Text(
+                        createdAt,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                GestureDetector(
-                  onTap: onDelete,
-                  child: Icon(
-                    Icons.delete,
-                    color: Colors.red,
-                    size: 22,
+                    ],
                   ),
-                ),
-              ],
+                  GestureDetector(
+                    onTap: onDelete,
+                    child: Icon(
+                      Icons.delete,
+                      color: Colors.red,
+                      size: 22,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          Divider(),
-          // 내용
-          Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildInfoColumn("소요 시간", walkTime),
-                _buildDivider(),
-                _buildInfoColumn("이동 거리", "$distance km"),
-                _buildDivider(),
-                _buildInfoColumn("속력", "$speed km/h"),
-              ],
+            Divider(),
+            // 내용
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildInfoColumn("소요 시간", walkTime),
+                  _buildDivider(),
+                  _buildInfoColumn("이동 거리", "$distance km"),
+                  _buildDivider(),
+                  _buildInfoColumn("속력", "$speed km/h"),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
