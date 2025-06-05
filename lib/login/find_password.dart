@@ -204,20 +204,27 @@ class _FindPasswordState extends BaseLoginState<FindPassword> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.grey[100],
         scrolledUnderElevation: 0,
-        surfaceTintColor: Colors.transparent,
-        title: Text('비밀번호 찾기', style: TextStyle(color: Colors.black)),
+        title: const Text(
+          '비밀번호 찾기',
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 18,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
+        backgroundColor: Colors.grey[100],
+        elevation: 0,
       ),
       resizeToAvoidBottomInset: true,
       body: Stack(
         children: [
           Transform.translate(
-            offset: Offset(0, isKeyboardVisible ? 100 : 30),
+            offset: Offset(0, isKeyboardVisible ? 30 : -40),
             child: Center(
               child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: 45.0),

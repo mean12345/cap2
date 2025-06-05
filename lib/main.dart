@@ -1,29 +1,22 @@
-// lib/main.dart
-
 import 'dart:async';
 import 'dart:developer';
-
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:dangq/login/login.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
-import 'login/login.dart'; // 로그인 화면 (이미 구현된 상태라 가정)
-import 'pages/navigation/route_select_page.dart';
-
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-
-  // .env 파일 로드 (assets/.env 에 MAP_KEY, BASE_URL 등)
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized(); // 비동기 초기화를 위해 필요
+  await initializeDateFormatting('ko_KR', null);
   await dotenv.load(fileName: "assets/.env");
-
-  // 네이버맵 SDK 초기화
-  await _initializeMapSdk();
-
+  await _initialize();
   runApp(const MyApp());
 }
 
-Future<void> _initializeMapSdk() async {
+Future<void> _initialize() async {
+  WidgetsFlutterBinding.ensureInitialized();
   String mapKey = dotenv.env['MAP_KEY'] ?? '';
   if (mapKey.isEmpty) {
     log("MAP_KEY is not found in .env file", name: "onAuthFailed");
@@ -48,14 +41,10 @@ class MyApp extends StatelessWidget {
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
       home: const PermissionRequestPage(),
-      debugShowCheckedModeBanner: false,
     );
   }
 }
 
-/// ─────────────────────────────────────────────────────────
-/// 권한 요청 화면: 위치 권한 허용 후 → 로그인 화면으로 이동
-/// ─────────────────────────────────────────────────────────
 class PermissionRequestPage extends StatefulWidget {
   const PermissionRequestPage({Key? key}) : super(key: key);
 
@@ -76,8 +65,6 @@ class _PermissionRequestPageState extends State<PermissionRequestPage> {
       var requestStatus = await Permission.location.request();
       if (requestStatus.isPermanentlyDenied) {
         openAppSettings();
-      } else if (requestStatus.isGranted) {
-        _navigateToLoginPage();
       }
     } else if (status.isGranted) {
       _navigateToLoginPage();
@@ -87,14 +74,14 @@ class _PermissionRequestPageState extends State<PermissionRequestPage> {
   void _navigateToLoginPage() {
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const Login()),
+      MaterialPageRoute(builder: (context) => Login()),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: CircularProgressIndicator()),
+    return Scaffold(
+      body: const Center(child: CircularProgressIndicator()),
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // 추가
 import '../colors.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -18,7 +19,6 @@ class WorkList extends StatefulWidget {
     required this.dogName,
     super.key,
   });
-
   @override
   State<WorkList> createState() => _WorkListState();
 }
@@ -27,12 +27,10 @@ class _WorkListState extends State<WorkList> {
   List<Map<String, dynamic>> workItems = [];
   Map<DateTime, List<Map<String, dynamic>>> workoutsByDate = {};
   bool isLoading = true;
-
   // 강아지 프로필 관련 상태
   List<Map<String, dynamic>> dogProfiles = [];
   bool _isLoading = false;
   int _currentPhotoIndex = 0;
-
   // 캘린더 관련 상태
   DateTime _focusedDay = DateTime.now();
   DateTime _selectedDay = DateTime.now();
@@ -41,7 +39,7 @@ class _WorkListState extends State<WorkList> {
   // 월별 총계 데이터
   String _monthlyTotalWalkTime = '00:00:00';
   String _monthlyTotalDistance = '0.00';
-  String _monthlyTotalSteps = '0';
+  String _monthlyTotalSpeed = '0';
 
   @override
   void initState() {
@@ -65,6 +63,7 @@ class _WorkListState extends State<WorkList> {
   late int _selectedDogId;
   late String _selectedDogName;
   String _selectedDogImageUrl = '';
+  final String baseUrl = dotenv.get('BASE_URL');
 
   void _updateSelectedDog(int dogId, String dogName, String imageUrl) {
     setState(() {
@@ -72,102 +71,97 @@ class _WorkListState extends State<WorkList> {
       _selectedDogName = dogName;
       _selectedDogImageUrl = imageUrl;
     });
+    // 선택된 강아지가 변경되면 해당 강아지의 운동 데이터를 다시 가져옴
+    fetchWorkoutDataForDog(dogId);
   }
 
-  final String baseUrl = dotenv.get('BASE_URL');
-
   Future<void> fetchWorkoutData() async {
+    await fetchWorkoutDataForDog(widget.dogId);
+  }
+
+  Future<void> fetchWorkoutDataForDog(int dogId) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/tracking/${widget.username}'),
+        Uri.parse('$baseUrl/tracking/${widget.username}?dog_id=$dogId'),
       );
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
+
+        DateTime? parseKoreanDateTime(String dateStr) {
+          try {
+            final format = DateFormat('yyyy. M. d. a h:mm:ss', 'ko');
+            return format.parse(dateStr);
+          } catch (e) {
+            return null;
+          }
+        }
+
         setState(() {
-          workItems = data
-              .map((item) {
-                try {
-                  DateTime? startTime =
-                      _parseKoreanDateTime(item['start_time']);
-                  DateTime? endTime = _parseKoreanDateTime(item['end_time']);
+          workItems = data.map((item) {
+            DateTime? startTime = item['start_time'] != null
+                ? parseKoreanDateTime(item['start_time'])
+                : null;
+            DateTime? endTime = item['end_time'] != null
+                ? parseKoreanDateTime(item['end_time'])
+                : null;
 
-                  Duration duration = Duration();
+            Duration duration = Duration();
+            if (startTime != null && endTime != null) {
+              duration = endTime.difference(startTime);
+            } else {
+              print('start 또는 end가 null임. 아이템: $item');
+            }
 
-                  if (startTime != null && endTime != null) {
-                    duration = endTime.difference(startTime);
-                  } else {
-                    print('start 또는 end가 null임. 아이템: $item');
-                  }
+            double distance =
+                double.tryParse(item['distance']?.toString() ?? '0') ?? 0;
+            double speedValue =
+                double.tryParse(item['speed']?.toString() ?? '0') ?? 0;
 
-                  int stepCount =
-                      int.tryParse(item['step_count']?.toString() ?? '0') ?? 0;
-                  double distance =
-                      double.tryParse(item['distance']?.toString() ?? '0') ?? 0;
+            String createdAtStr = item['created_at'] ?? '';
+            DateTime createdAtDate = createdAtStr.isNotEmpty
+                ? (DateTime.tryParse(createdAtStr) ?? DateTime.now())
+                : DateTime.now();
 
-                  String createdAt =
-                      item['created_at']?.toString() ??
-                          DateTime.now().toString().split(' ')[0];
+            return {
+              'track_id': item['track_id']?.toString() ?? '',
+              'username': item['username']?.toString() ?? '',
+              'walkTime': _formatDuration(duration),
+              'walkTimeDuration': duration,
+              'distance': (distance / 1000).toStringAsFixed(2),
+              'distanceValue': distance / 1000,
+              'speed': speedValue.toStringAsFixed(2),
+              'speedValue': speedValue,
+              'created_at': createdAtDate.toIso8601String(),
+              'date': createdAtDate,
+            };
+          }).toList();
 
-                  return {
-                    'track_id': item['track_id']?.toString() ?? '',
-                    'username': item['username']?.toString() ?? '',
-                    'walkTime': _formatDuration(duration),
-                    'walkTimeDuration': duration,
-                    'distance': (distance / 1000).toStringAsFixed(2),
-                    'distanceValue': distance / 1000,
-                    'steps': stepCount.toString(),
-                    'stepsValue': stepCount,
-                    'created_at': createdAt,
-                    'date': _parseDate(createdAt),
-                  };
-                } catch (e) {
-                  print('Data processing error: $e');
-                  return null;
-                }
-              })
-              .where((item) => item != null)
-              .cast<Map<String, dynamic>>()
-              .toList();
-
-          // 날짜별로 운동 데이터 그룹화
           workoutsByDate = {};
           for (var item in workItems) {
             DateTime date = item['date'];
             DateTime dateOnly = DateTime(date.year, date.month, date.day);
-            if (workoutsByDate[dateOnly] == null) {
-              workoutsByDate[dateOnly] = [];
-            }
+            workoutsByDate[dateOnly] ??= [];
             workoutsByDate[dateOnly]!.add(item);
           }
 
-          // 현재 보고 있는 월의 총계 데이터 계산
-          _calculateMonthlyTotals();
-        });
-      } else if (response.statusCode == 404) {
-        // 데이터가 없는 경우
-        setState(() {
-          workItems = [];
-          workoutsByDate = {};
+          isLoading = false;
           _calculateMonthlyTotals();
         });
       } else {
-        print('Error response: ${response.statusCode}');
-        throw Exception('Failed to load workout data');
+        print('서버 응답 오류: ${response.statusCode}');
+        setState(() {
+          isLoading = false;
+        });
       }
     } catch (e) {
       print('Error fetching data: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('산책 기록을 불러오는데 실패했습니다.')),
-      );
-    } finally {
       setState(() {
         isLoading = false;
       });
     }
   }
 
-  // 월별 총계 계산 함수
   void _calculateMonthlyTotals() {
     try {
       final int currentMonth = _focusedDay.month;
@@ -175,45 +169,28 @@ class _WorkListState extends State<WorkList> {
 
       Duration totalDuration = Duration();
       double totalDistance = 0.0;
-      int totalSteps = 0;
+      double totalSpeedSum = 0.0;
+      int speedCount = 0;
 
       for (var item in workItems) {
         DateTime itemDate = item['date'];
         if (itemDate.month == currentMonth && itemDate.year == currentYear) {
           totalDuration += item['walkTimeDuration'] as Duration;
           totalDistance += item['distanceValue'] as double;
-          totalSteps += item['stepsValue'] as int;
+          totalSpeedSum += (item['speedValue'] as num).toDouble();
+          speedCount++;
         }
       }
+
+      double averageSpeed = speedCount > 0 ? totalSpeedSum / speedCount : 0.0;
 
       setState(() {
         _monthlyTotalWalkTime = _formatDuration(totalDuration);
         _monthlyTotalDistance = totalDistance.toStringAsFixed(2);
-        _monthlyTotalSteps = totalSteps.toString();
+        _monthlyTotalSpeed = averageSpeed.toStringAsFixed(2);
       });
     } catch (e) {
       print('월별 총계 계산 오류: $e');
-    }
-  }
-
-  DateTime _parseDate(String dateString) {
-    try {
-      return DateTime.parse(dateString);
-    } catch (e) {
-      print('날짜 파싱 실패: $e');
-      return DateTime.now();
-    }
-  }
-
-  DateTime? _parseKoreanDateTime(String? dateString) {
-    if (dateString == null || dateString.isEmpty) {
-      return null;
-    }
-    try {
-      return DateFormat('yyyy. M. d. a h:mm:ss', 'ko_KR').parse(dateString);
-    } catch (e) {
-      print('시간 파싱 실패: $e');
-      return null;
     }
   }
 
@@ -298,28 +275,122 @@ class _WorkListState extends State<WorkList> {
     }
   }
 
+  // 강아지 선택 다이얼로그
+  void _showDogSelectionDialog() {
+    if (dogProfiles.isEmpty) return;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(5),
+          ),
+          child: Container(
+            padding: EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(5),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '반려견 선택',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 20),
+                Container(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.4,
+                  ),
+                  padding: EdgeInsets.symmetric(vertical: 10),
+                  child: GridView.builder(
+                    shrinkWrap: true,
+                    physics: BouncingScrollPhysics(),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 3,
+                      crossAxisSpacing: 8,
+                      mainAxisSpacing: 16,
+                      childAspectRatio: 0.8, // 추가: 아이템의 세로 비율 조정
+                    ),
+                    itemCount: dogProfiles.length,
+                    itemBuilder: (context, index) {
+                      final dog = dogProfiles[index];
+                      return GestureDetector(
+                        onTap: () {
+                          _updateSelectedDog(
+                            dog['id'],
+                            dog['dog_name'] ?? '이름 없음',
+                            dog['image_url'] ?? '',
+                          );
+                          Navigator.pop(context);
+                        },
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircleAvatar(
+                              radius: 30,
+                              backgroundImage: dog['image_url'] != null &&
+                                      dog['image_url'].isNotEmpty
+                                  ? NetworkImage(dog['image_url'])
+                                  : AssetImage('assets/images/default_dog.png')
+                                      as ImageProvider,
+                              backgroundColor: Colors.grey[300],
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              dog['dog_name'] ?? '이름 없음',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              textAlign: TextAlign.center,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    // 상태바 스타일 설정
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Color(0xFFF4F4F4), // AppColors.background와 동일한 색상
+      statusBarIconBrightness: Brightness.dark,
+    ));
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         scrolledUnderElevation: 0,
-        toolbarHeight: MediaQuery.of(context).size.height * 0.05,
+        toolbarHeight: MediaQuery.of(context).size.height * 0.07,
+        title: const Text(
+          '일정 목록',
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 18,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black, size: 35),
-          onPressed: () {
-            Navigator.pop(context, {
-              'dogId': _selectedDogId,
-              'dogName': _selectedDogName,
-              'imageUrl': _selectedDogImageUrl,
-            });
-          },
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text(
-          '산책 기록',
-          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w300),
-        ),
-        backgroundColor: Colors.transparent,
+        backgroundColor: Colors.white,
         elevation: 0,
       ),
       body: isLoading
@@ -327,18 +398,86 @@ class _WorkListState extends State<WorkList> {
           : SingleChildScrollView(
               child: Column(
                 children: [
+                  _buildDogProfileSection(),
                   _buildCalendar(),
                   _buildMonthlyTotalSection(),
-                  Container(
-                    // 마지막 섹션의 높이를 명시적으로 설정
-                    constraints: BoxConstraints(
-                      minHeight: MediaQuery.of(context).size.height * 0.4,
-                    ),
-                    child: _buildSelectedDayWorkouts(),
-                  ),
+                  _buildSelectedDayWorkouts(),
                 ],
               ),
             ),
+    );
+  }
+
+  // 반려견 프로필 섹션
+  Widget _buildDogProfileSection() {
+    return Container(
+      margin: EdgeInsets.fromLTRB(8, 8, 8, 0),
+      padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.2),
+            spreadRadius: 1,
+            blurRadius: 3,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: GestureDetector(
+        onTap: _showDogSelectionDialog,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.green, width: 2),
+              ),
+              child: CircleAvatar(
+                radius: 28,
+                backgroundImage: _selectedDogImageUrl.isNotEmpty
+                    ? NetworkImage(_selectedDogImageUrl)
+                    : AssetImage('assets/images/default_dog.png')
+                        as ImageProvider,
+                backgroundColor: Colors.grey[300],
+              ),
+            ),
+            SizedBox(width: 16),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _selectedDogName,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  '산책 기록',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+            Spacer(),
+            if (dogProfiles.length > 1)
+              Icon(
+                Icons.keyboard_arrow_down,
+                color: Colors.grey[600],
+                size: 24,
+              ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -346,7 +485,7 @@ class _WorkListState extends State<WorkList> {
   Widget _buildMonthlyTotalSection() {
     final String monthName = DateFormat('yyyy년 M월').format(_focusedDay);
     return Container(
-      margin: EdgeInsets.fromLTRB(8, 0, 8, 8),
+      margin: EdgeInsets.fromLTRB(8, 8, 8, 8),
       padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -388,8 +527,8 @@ class _WorkListState extends State<WorkList> {
               ),
               SizedBox(width: 8),
               _buildMonthlySummaryCard(
-                '총 속력',
-                '$_monthlyTotalSteps km/h',
+                '평균 속력',
+                '${double.parse(_monthlyTotalSpeed).toStringAsFixed(2)} km/h',
                 Icons.directions_walk,
               ),
             ],
@@ -440,7 +579,7 @@ class _WorkListState extends State<WorkList> {
 
   Widget _buildCalendar() {
     return Container(
-      margin: EdgeInsets.all(8.0),
+      margin: EdgeInsets.fromLTRB(8, 0, 8, 0),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
@@ -453,138 +592,83 @@ class _WorkListState extends State<WorkList> {
           ),
         ],
       ),
-      child: Column(
-        children: [
-          SizedBox(height: 16),
-          if (_isLoading)
-            CircularProgressIndicator()
-          else if (dogProfiles.isEmpty)
-            Text('등록된 반려견이 없습니다.')
-          else
-            GestureDetector(
-              onTap: () async {
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => DogListPage(
-                      username: widget.username,
-                      onDogSelected: (int id, String name, String imageUrl) {
-                        _updateSelectedDog(id, name, imageUrl);
-                      },
-                    ),
-                  ),
-                );
-
-                // DogListPage에서 돌아온 후 프로필 새로고침
-                if (result != null) {
-                  await _fetchDogProfiles();
-                }
-              },
-              child: Container(
-                width: 100,
-                height: 100,
-                margin: EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  image: _selectedDogImageUrl.isNotEmpty
-                      ? DecorationImage(
-                          image: NetworkImage(_selectedDogImageUrl),
-                          fit: BoxFit.cover,
-                        )
-                      : null,
-                  color: _selectedDogImageUrl.isEmpty ? Colors.grey[300] : null,
-                ),
-                child: _selectedDogImageUrl.isEmpty
-                    ? Icon(Icons.pets, size: 50, color: Colors.grey)
-                    : null,
-              ),
-            ),
-          if (dogProfiles.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Text(
-                _selectedDogName,
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-              ),
-            ),
-          SizedBox(height: 8),
-          TableCalendar(
-            locale: 'ko_KR',
-            firstDay: DateTime.utc(2020, 1, 1),
-            lastDay: DateTime.utc(2030, 12, 31),
-            focusedDay: _focusedDay,
-            calendarFormat: _calendarFormat,
-            eventLoader: (day) {
-              final dateOnly = DateTime(day.year, day.month, day.day);
-              return workoutsByDate[dateOnly] ?? [];
-            },
-            selectedDayPredicate: (day) {
-              return isSameDay(_selectedDay, day);
-            },
-            onDaySelected: (selectedDay, focusedDay) {
-              if (!isSameDay(_selectedDay, selectedDay)) {
-                setState(() {
-                  _selectedDay = selectedDay;
-                  _focusedDay = focusedDay;
-                });
-              }
-            },
-            onFormatChanged: (format) {
-              if (_calendarFormat != format) {
-                setState(() {
-                  _calendarFormat = format;
-                });
-              }
-            },
-            onPageChanged: (focusedDay) {
-              setState(() {
-                _focusedDay = focusedDay;
-                _calculateMonthlyTotals();
-              });
-            },
-            calendarStyle: CalendarStyle(
-              markerDecoration: BoxDecoration(
-                color: AppColors.green,
-                shape: BoxShape.circle,
-              ),
-              todayDecoration: BoxDecoration(
-                color: AppColors.green.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              selectedDecoration: BoxDecoration(
-                border: Border.all(color: AppColors.green, width: 2),
-                shape: BoxShape.circle,
-              ),
-              selectedTextStyle: TextStyle(
-                color: Colors.black87,
-                fontWeight: FontWeight.bold,
-              ),
-              todayTextStyle: TextStyle(
-                color: Colors.black87,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            headerStyle: HeaderStyle(
-              formatButtonVisible: false,
-              titleCentered: true,
-              formatButtonShowsNext: false,
-            ),
+      child: TableCalendar(
+        locale: 'ko_KR',
+        firstDay: DateTime.utc(2020, 1, 1),
+        lastDay: DateTime.utc(2030, 12, 31),
+        focusedDay: _focusedDay,
+        calendarFormat: _calendarFormat,
+        eventLoader: (day) {
+          final dateOnly = DateTime(day.year, day.month, day.day);
+          return workoutsByDate[dateOnly] ?? [];
+        },
+        selectedDayPredicate: (day) {
+          return isSameDay(_selectedDay, day);
+        },
+        onDaySelected: (selectedDay, focusedDay) {
+          if (!isSameDay(_selectedDay, selectedDay)) {
+            setState(() {
+              _selectedDay = selectedDay;
+              _focusedDay = focusedDay;
+            });
+          }
+        },
+        onFormatChanged: (format) {
+          if (_calendarFormat != format) {
+            setState(() {
+              _calendarFormat = format;
+            });
+          }
+        },
+        onPageChanged: (focusedDay) {
+          setState(() {
+            _focusedDay = focusedDay;
+            _calculateMonthlyTotals();
+          });
+        },
+        calendarStyle: CalendarStyle(
+          markerDecoration: BoxDecoration(
+            color: AppColors.green,
+            shape: BoxShape.circle,
           ),
-        ],
+          todayDecoration: BoxDecoration(
+            color: AppColors.green.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          selectedDecoration: BoxDecoration(
+            border: Border.all(color: AppColors.green, width: 2),
+            shape: BoxShape.circle,
+          ),
+          selectedTextStyle: TextStyle(
+            color: Colors.black87,
+            fontWeight: FontWeight.bold,
+          ),
+          todayTextStyle: TextStyle(
+            color: Colors.black87,
+            fontWeight: FontWeight.bold,
+          ),
+          defaultTextStyle: TextStyle(
+            color: Colors.black87,
+          ),
+        ),
+        headerStyle: HeaderStyle(
+          formatButtonVisible: false,
+          titleCentered: true,
+          formatButtonShowsNext: false,
+        ),
       ),
     );
   }
 
-  // _buildSelectedDayWorkouts 메서드를 수정
   Widget _buildSelectedDayWorkouts() {
     final dateOnly =
         DateTime(_selectedDay.year, _selectedDay.month, _selectedDay.day);
     final selectedWorkouts = workoutsByDate[dateOnly] ?? [];
 
     if (selectedWorkouts.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: EdgeInsets.all(20),
+      return Padding(
+        padding: EdgeInsets.all(16),
+        child: Center(
           child: Text(
             '이 날의 산책 기록이 없습니다.',
             style: TextStyle(color: Colors.grey[600], fontSize: 16),
@@ -596,13 +680,13 @@ class _WorkListState extends State<WorkList> {
     return Column(
       children: selectedWorkouts.map((workout) {
         return Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
           child: WorkListItem(
             walkTime: workout['walkTime'],
             distance: workout['distance'],
-            steps: workout['steps'],
+            speed: workout['speed'],
             username: workout['username'],
-            createdAt: workout['created_at'],
+            createdAt: _formatDisplayDate(workout['created_at']),
             onDelete: () => _showDeleteConfirmation(workout),
           ),
         );
@@ -613,7 +697,9 @@ class _WorkListState extends State<WorkList> {
   String _formatDisplayDate(String dateString) {
     try {
       DateTime dateTime = DateTime.parse(dateString);
-      return DateFormat('yyyy년 MM월 dd일 HH:mm').format(dateTime);
+      // Convert to KST (UTC+9)
+      DateTime kstDateTime = dateTime.toUtc().add(Duration(hours: 9));
+      return DateFormat('yyyy-MM-dd HH:mm').format(kstDateTime);
     } catch (e) {
       return dateString;
     }
@@ -681,7 +767,7 @@ class _WorkListState extends State<WorkList> {
 class WorkListItem extends StatelessWidget {
   final String walkTime;
   final String distance;
-  final String steps;
+  final String speed;
   final String username;
   final String createdAt;
   final VoidCallback? onDelete;
@@ -689,7 +775,7 @@ class WorkListItem extends StatelessWidget {
   const WorkListItem({
     required this.walkTime,
     required this.distance,
-    required this.steps,
+    required this.speed,
     required this.username,
     required this.createdAt,
     this.onDelete,
@@ -720,29 +806,24 @@ class WorkListItem extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Expanded(
-                  child: Row(
-                    children: [
-                      Text(
-                        username,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                Row(
+                  children: [
+                    Text(
+                      username,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
                       ),
-                      SizedBox(width: 10),
-                      Flexible(
-                        child: Text(
-                          createdAt,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                    ),
+                    SizedBox(width: 10),
+                    Text(
+                      createdAt,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
                 GestureDetector(
                   onTap: onDelete,
@@ -766,7 +847,7 @@ class WorkListItem extends StatelessWidget {
                 _buildDivider(),
                 _buildInfoColumn("이동 거리", "$distance km"),
                 _buildDivider(),
-                _buildInfoColumn("속력", "$steps km/h"),
+                _buildInfoColumn("속력", "$speed km/h"),
               ],
             ),
           ),
@@ -807,115 +888,3 @@ class WorkListItem extends StatelessWidget {
     );
   }
 }
-
-class work extends StatefulWidget {
-  const work({super.key});
-
-  @override
-  State<work> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<work> {
-  CalendarFormat _calendarFormat = CalendarFormat.month;
-  DateTime _focusedDay = DateTime.now();
-  DateTime? _selectedDay;
-  final Set<DateTime> _walkDays = {};
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
-        title: const CircleAvatar(
-          radius: 25,
-          backgroundImage: NetworkImage('https://i.imgur.com/qgaYJWX.png'),
-          backgroundColor: Colors.grey,
-        ),
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            TableCalendar(
-              firstDay: DateTime.utc(2024, 1, 1),
-              lastDay: DateTime.utc(2025, 12, 31),
-              focusedDay: _focusedDay,
-              calendarFormat: _calendarFormat,
-              selectedDayPredicate: (day) {
-                return isSameDay(_selectedDay, day);
-              },
-              onDaySelected: (selectedDay, focusedDay) {
-                setState(() {
-                  _selectedDay = selectedDay;
-                  _focusedDay = focusedDay;
-                });
-              },
-              onFormatChanged: (format) {
-                setState(() {
-                  _calendarFormat = format;
-                });
-              },
-              eventLoader: (day) {
-                return _walkDays.contains(day) ? ['산책'] : [];
-              },
-              calendarStyle: const CalendarStyle(
-                markerDecoration: BoxDecoration(
-                  color: Colors.green,
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildStatCard('이동거리', '-km'),
-                  _buildStatCard('평균 속력', '-km/h'),
-                  _buildStatCard('소요시간', '-시간'),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          setState(() {
-            _walkDays.add(_focusedDay);
-          });
-        },
-        child: const Icon(Icons.add),
-      ),
-    );
-  }
-
-  Widget _buildStatCard(String title, String value) {
-    return Card(
-      elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 18,
-                color: Colors.green,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-

@@ -2,14 +2,14 @@
 
 import 'dart:convert';
 import 'package:dangq/colors.dart';
-import 'package:dangq/work/work_self/work.dart'; // 이미 구현된 Work 화면
-import 'package:dangq/work/dog_list.dart'; // 이미 구현된 DogListPage
+import 'package:dangq/work/work_self/work.dart';
+import 'package:dangq/work/dog_list.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // SystemUiOverlayStyle 사용
+import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:http/http.dart' as http;
-import 'package:dangq/pages/navigation/route_select_page.dart';
+import 'package:dangq/pages/navigation/route_select_page.dart'; // route.dart import
 
 class WalkChoose extends StatefulWidget {
   final String username;

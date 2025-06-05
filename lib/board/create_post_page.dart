@@ -187,7 +187,8 @@ class _CreatePostPageState extends State<CreatePostPage> {
                   ),
                   if (_image != null)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16.0, vertical: 8.0),
                       child: Stack(
                         alignment: Alignment.topRight,
                         children: [
@@ -203,7 +204,8 @@ class _CreatePostPageState extends State<CreatePostPage> {
                           Container(
                             padding: const EdgeInsets.all(4.0),
                             decoration: BoxDecoration(
-                              color: const Color.fromARGB(255, 39, 39, 39).withOpacity(0.5),
+                              color: const Color.fromARGB(255, 39, 39, 39)
+                                  .withOpacity(0.5),
                               shape: BoxShape.rectangle,
                             ),
                             child: IconButton(

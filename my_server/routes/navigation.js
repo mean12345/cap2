@@ -1,170 +1,257 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
-require('dotenv').config();
+const db = require('../config/database');
 
 const TMAP_APP_KEY = process.env.TMAP_APP_KEY;
 
-// 경로 요청 라우터 (도보 경로)
-router.post('/getPath', async (req, res) => {
-  try {
-    const { start, end, stopovers } = req.body;
-    
-    if (!start || !end) {
-      return res.status(400).json({ message: 'start와 end가 필요합니다.' });
+// 위도/경도 기준 약 100m 거리 계산용 (Haversine)
+function getDistanceMeters(lat1, lng1, lat2, lng2) {
+  const R = 6371000; // 지구 반지름 (m)
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) *
+      Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+
+function selectGoodWaypoints(start, end, goodMarkers) {
+  let clusteredPoints = clusterMarkers(goodMarkers, 50, 3);
+
+  const maxDistMeters = getDistanceMeters(start.lat, start.lng, end.lat, end.lng);
+
+  // start~end 경로 근처 필터링
+  clusteredPoints = clusteredPoints.filter(point => {
+    const distToStart = getDistanceMeters(start.lat, start.lng, point.lat, point.lng);
+    const distToEnd = getDistanceMeters(end.lat, end.lng, point.lat, point.lng);
+    return (distToStart + distToEnd) <= maxDistMeters * 1.5;
+  });
+
+  // 밀집도 내림차순 정렬 (많이 모인 곳 우선)
+  clusteredPoints.sort((a, b) => b.density - a.density);
+
+  console.log(`초기 클러스터 중심 경유지 수(정렬됨): ${clusteredPoints.length}`);
+
+  // 1순위 경유지 기준 500m 내 중복 제거
+  const selectedPoints = [];
+  const exclusionRadius = 500; // 500m 반경
+
+  clusteredPoints.forEach(point => {
+    // 이미 선택된 경유지 중에 이 point와 500m 이내인 게 있으면 제외
+    const isExcluded = selectedPoints.some(selected => {
+      return getDistanceMeters(selected.lat, selected.lng, point.lat, point.lng) <= exclusionRadius;
+    });
+
+    if (!isExcluded) {
+      selectedPoints.push(point);
+    }
+  });
+
+  console.log(`500m 이내 중복 제거 후 경유지 수: ${selectedPoints.length}`);
+
+  return selectedPoints;
+}
+
+
+// 경로 계산 함수
+function calculateRouteWithGoodWaypoints(start, end, goodMarkers, callback) {
+  const goodWaypoints = selectGoodWaypoints(start, end, goodMarkers);
+  let waypoints = [...goodWaypoints];
+
+  if (waypoints.length > 5) {
+    waypoints.splice(5);
+    console.log('경유지가 5개를 초과하여 잘랐습니다.');
+  }
+
+  if (waypoints.length === 0) {
+    console.log('경유지가 없어 직선 경로 요청');
+    return calculateDirectRoute(start, end, callback);
+  }
+
+  const points = [start, ...waypoints, end];
+  let allPaths = [];
+  const visited = new Set(); // 방문한 좌표 저장용
+  let index = 0;
+
+  function coordKey(lat, lng) {
+    return `${lat.toFixed(6)},${lng.toFixed(6)}`;
+  }
+
+  function processSegment() {
+    if (index >= points.length - 1) {
+      console.log('모든 경로 계산 완료');
+      return callback(null, allPaths);
     }
 
-    // 경유지가 있는 경우와 없는 경우를 분리하여 처리
-    if (stopovers && stopovers.length > 0) {
-      // 경유지가 있는 경우: 단계별로 경로를 계산
-      const allPaths = await calculateRouteWithStopovers(start, end, stopovers);
-      return res.json({ 
-        path: allPaths,
-        routeType: 'multi-segment'
-      });
-    } else {
-      // 경유지가 없는 경우: 직접 경로 계산
-      const path = await calculateDirectRoute(start, end);
-      return res.json({ 
-        path: path,
-        routeType: 'direct'
-      });
-    }
-  } catch (error) {
-    console.error('경로 요청 실패:', error.response?.data || error.message);
-    return res.status(500).json({
-      message: '서버 오류로 인해 경로를 계산할 수 없습니다.',
-      error: error.response?.data || error.message,
+    const segmentStart = points[index];
+    const segmentEnd = points[index + 1];
+    console.log(`구간 ${index} -> ${index + 1} 경로 계산 중...`);
+
+    calculateDirectRoute(segmentStart, segmentEnd, (err, segmentPath) => {
+      if (err) {
+        console.error(`구간 ${index}~${index + 1} 실패:`, err.message);
+        // 실패 시 구간 시작/끝 좌표만 추가
+        allPaths.push({ lat: segmentStart.lat, lng: segmentStart.lng });
+        allPaths.push({ lat: segmentEnd.lat, lng: segmentEnd.lng });
+      } else {
+        // 중복 좌표 제거 후 추가
+        segmentPath.forEach((point) => {
+          const key = coordKey(point.lat, point.lng);
+          if (!visited.has(key)) {
+            allPaths.push(point);
+            visited.add(key);
+          }
+        });
+        console.log(`구간 ${index} -> ${index + 1} 경로 점 개수: ${segmentPath.length}`);
+      }
+
+      index++;
+      processSegment();
     });
   }
-});
 
-// 직접 경로 계산 (경유지 없음)
-async function calculateDirectRoute(start, end) {
+  processSegment();
+}
+function clusterMarkers(markers, radiusMeters = 50, minClusterSize = 3) {
+  const clusters = [];
+
+  markers.forEach(marker => {
+    let addedToCluster = false;
+    for (const cluster of clusters) {
+      for (const existing of cluster.markers) {
+        const dist = getDistanceMeters(existing.latitude, existing.longitude, marker.latitude, marker.longitude);
+        if (dist < radiusMeters) {
+          cluster.markers.push(marker);
+          addedToCluster = true;
+          break;
+        }
+      }
+      if (addedToCluster) break;
+    }
+
+    if (!addedToCluster) {
+      clusters.push({ markers: [marker] });
+    }
+  });
+
+  // 중심 좌표와 밀집도(마커 개수) 반환
+  const centroids = clusters
+    .filter(cluster => cluster.markers.length >= minClusterSize)
+    .map(cluster => {
+      const latSum = cluster.markers.reduce((sum, m) => sum + m.latitude, 0);
+      const lngSum = cluster.markers.reduce((sum, m) => sum + m.longitude, 0);
+      const count = cluster.markers.length;
+      return {
+        lat: latSum / count,
+        lng: lngSum / count,
+        density: count // 밀집도
+      };
+    });
+
+  console.log(`클러스터 개수: ${centroids.length}`);
+  return centroids;
+}
+
+// TMAP 도보 경로 API 호출
+function calculateDirectRoute(start, end, callback) {
   const url = 'https://apis.openapi.sk.com/tmap/routes/pedestrian';
-  
   const data = {
-    startX: start.lng.toString(),
-    startY: start.lat.toString(),
-    endX: end.lng.toString(),
-    endY: end.lat.toString(),
+    startX: String(start.lng),
+    startY: String(start.lat),
+    endX: String(end.lng),
+    endY: String(end.lat),
     startName: '출발지',
     endName: '도착지',
     reqCoordType: 'WGS84GEO',
     resCoordType: 'WGS84GEO',
-    searchOption: '0'  // 0: 추천경로, 4: 편안한길, 8: 빠른길
+    searchOption: '10'
   };
-
   const headers = {
-    appKey: TMAP_APP_KEY,
-    'Content-Type': 'application/json',
+    'appKey': TMAP_APP_KEY,
+    'Content-Type': 'application/json'
   };
 
-  console.log('API 요청 데이터:', JSON.stringify(data, null, 2));
-  const response = await axios.post(url, data, { headers });
-  
-  console.log('API 응답:', JSON.stringify(response.data, null, 2));
+  console.log('TMAP API 요청:', data);
 
-  // T-Map 도보 경로 API 응답 구조 확인
-  if (!response.data || !response.data.features) {
-    throw new Error('유효하지 않은 API 응답');
+  axios.post(url, data, { headers })
+    .then(response => {
+      if (!response.data || !response.data.features) {
+        console.error('TMAP 응답 비정상:', response.data);
+        return callback(new Error('유효하지 않은 API 응답'));
+      }
+      let path = [];
+      response.data.features.forEach(feature => {
+        if (feature.geometry?.coordinates) {
+          if (feature.geometry.type === 'LineString') {
+            feature.geometry.coordinates.forEach(coord => {
+              path.push({ lat: coord[1], lng: coord[0] });
+            });
+          } else if (feature.geometry.type === 'Point') {
+            const coord = feature.geometry.coordinates;
+            path.push({ lat: coord[1], lng: coord[0] });
+          }
+        }
+      });
+      console.log('TMAP 경로 길이:', path.length);
+      callback(null, path);
+    })
+    .catch(err => {
+      console.error('TMAP API 오류:', err.message);
+      callback(err);
+    });
+}
+
+// POST 요청 핸들러
+router.post('/getPath', (req, res) => {
+  const { start, end } = req.body;
+  console.log('받은 요청:', start, end);
+
+  if (!start || !end) {
+    return res.status(400).json({ message: 'start와 end가 필요합니다.' });
   }
 
-  const path = [];
-  
-  // features 배열에서 좌표 정보 추출
-  response.data.features.forEach(feature => {
-    if (feature.geometry && feature.geometry.coordinates) {
-      if (feature.geometry.type === 'LineString') {
-        // LineString인 경우 좌표 배열
-        feature.geometry.coordinates.forEach(coord => {
-          path.push({ lat: coord[1], lng: coord[0] });
-        });
-      } else if (feature.geometry.type === 'Point') {
-        // Point인 경우 단일 좌표
-        const coord = feature.geometry.coordinates;
-        path.push({ lat: coord[1], lng: coord[0] });
-      }
+  db.query('SELECT latitude, longitude FROM markers WHERE marker_type = "good"', (err, goodMarkers) => {
+    if (err) {
+      console.error('DB 조회 오류:', err);
+      return res.status(500).json({ message: 'DB 오류 발생' });
     }
+
+    console.log(`조회된 good 마커 수: ${goodMarkers.length}`);
+
+    calculateRouteWithGoodWaypoints(start, end, goodMarkers, (err, path) => {
+      if (err) {
+        console.error('경로 계산 실패:', err);
+        return res.status(500).json({ message: '경로 계산 실패' });
+      }
+      console.log('최종 경로 반환');
+      res.json({ path });
+    });
   });
+});
+// 역방향 경로 계산용 POST 라우터
+router.post('/getReversePath', (req, res) => {
+  const { start, end } = req.body;
+  console.log('받은 역방향 요청:', start, end);
 
-  // 경로를 polyline 형태로 정리
-  const cleanedPath = cleanPath(path);
-  
-  return cleanedPath;
-}
-
-// 경유지가 있는 경우 단계별 경로 계산
-async function calculateRouteWithStopovers(start, end, stopovers) {
-  const waypoints = [start, ...stopovers, end];
-  const allPaths = [];
-  
-  // 각 구간별로 경로 계산
-  for (let i = 0; i < waypoints.length - 1; i++) {
-    const segmentStart = waypoints[i];
-    const segmentEnd = waypoints[i + 1];
-    
-    try {
-      const segmentPath = await calculateDirectRoute(segmentStart, segmentEnd);
-      
-      // 첫 번째 구간이 아닌 경우, 시작점은 제외 (중복 방지)
-      if (i > 0 && segmentPath.length > 0) {
-        segmentPath.shift(); // 첫 번째 점 제거
-      }
-      
-      allPaths.push(...segmentPath);
-    } catch (error) {
-      console.error(`구간 ${i}-${i+1} 경로 계산 실패:`, error.message);
-      // 실패한 구간은 직선으로 연결
-      if (i === 0 || allPaths.length === 0) {
-        allPaths.push({ lat: segmentStart.lat, lng: segmentStart.lng });
-      }
-      allPaths.push({ lat: segmentEnd.lat, lng: segmentEnd.lng });
-    }
+  if (!start || !end) {
+    return res.status(400).json({ message: 'start와 end가 필요합니다.' });
   }
 
-  // 전체 경로를 정리하여 반환
-  return cleanPath(allPaths);
-}
-
-// 경로 데이터 정리 함수 (중복 제거, 유효성 검사)
-function cleanPath(path) {
-  if (!path || path.length === 0) {
-    return [];
-  }
-
-  const cleanedPath = [];
-  const tolerance = 0.00001; // 약 1미터 정도의 허용 오차
-
-  for (let i = 0; i < path.length; i++) {
-    const point = path[i];
-    
-    // 유효한 좌표인지 확인
-    if (!point || typeof point.lat !== 'number' || typeof point.lng !== 'number') {
-      continue;
+  // 여기서는 경유지 없이 단순히 end->start 순서로 요청
+  calculateDirectRoute(end, start, (err, path) => {
+    if (err) {
+      console.error('역방향 경로 계산 실패:', err);
+      return res.status(500).json({ message: '경로 계산 실패' });
     }
-
-    // 첫 번째 점이거나, 이전 점과 충분히 떨어져 있는 경우만 추가
-    if (cleanedPath.length === 0) {
-      cleanedPath.push(point);
-    } else {
-      const lastPoint = cleanedPath[cleanedPath.length - 1];
-      const distance = calculateDistance(point, lastPoint);
-      
-      if (distance > tolerance) {
-        cleanedPath.push(point);
-      }
-    }
-  }
-
-  return cleanedPath;
-}
-
-// 두 점 사이의 거리 계산 (간단한 유클리드 거리)
-function calculateDistance(point1, point2) {
-  const dlat = point1.lat - point2.lat;
-  const dlng = point1.lng - point2.lng;
-  return Math.sqrt(dlat * dlat + dlng * dlng);
-}
+    console.log('최종 역방향 경로 반환');
+    res.json({ path });
+  });
+});
 
 module.exports = router;

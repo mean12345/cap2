@@ -111,7 +111,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
   Future<void> _deleteComment(int commentId) async {
     // 키보드 숨기기
     FocusScope.of(context).unfocus();
-    
+
     bool? confirm = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
@@ -258,7 +258,8 @@ class _PostDetailPageState extends State<PostDetailPage> {
                         } else if (snapshot.hasData) {
                           final profileInfo = snapshot.data!;
                           return Text(
-                            profileInfo['nickname'] ?? '', // 닉네임이 없을 경우 빈 문자열 표시
+                            profileInfo['nickname'] ??
+                                '', // 닉네임이 없을 경우 빈 문자열 표시
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                             ),
@@ -299,7 +300,8 @@ class _PostDetailPageState extends State<PostDetailPage> {
                             if (loadingProgress == null) return child;
                             return Center(
                               child: CircularProgressIndicator(
-                                value: loadingProgress.expectedTotalBytes != null
+                                value: loadingProgress.expectedTotalBytes !=
+                                        null
                                     ? loadingProgress.cumulativeBytesLoaded /
                                         loadingProgress.expectedTotalBytes!
                                     : null,
@@ -326,7 +328,8 @@ class _PostDetailPageState extends State<PostDetailPage> {
                   ),
                   ListView.separated(
                     shrinkWrap: true,
-                    physics: NeverScrollableScrollPhysics(), // 부모 스크롤뷰를 따라가도록 설정
+                    physics:
+                        NeverScrollableScrollPhysics(), // 부모 스크롤뷰를 따라가도록 설정
                     itemCount: comments.length,
                     separatorBuilder: (context, index) => Divider(
                       color: Colors.grey[200],
@@ -352,16 +355,14 @@ class _PostDetailPageState extends State<PostDetailPage> {
                             } else if (snapshot.hasData) {
                               final profileInfo = snapshot.data!;
                               // 프로필 이미지가 있으면 이미지로, 없으면 기본 아이콘 표시
-                              return profileInfo['profile_picture'] !=
-                                          null &&
-                                      profileInfo['profile_picture']!
-                                          .isNotEmpty
+                              return profileInfo['profile_picture'] != null &&
+                                      profileInfo['profile_picture']!.isNotEmpty
                                   ? CircleAvatar(
                                       backgroundImage: NetworkImage(
                                           profileInfo['profile_picture']!),
                                     )
-                                  : const Icon(Icons
-                                      .person); // 프로필 이미지가 없을 경우 기본 아이콘 표시
+                                  : const Icon(
+                                      Icons.person); // 프로필 이미지가 없을 경우 기본 아이콘 표시
                             } else {
                               return const Icon(
                                   Icons.person); // 프로필 이미지가 없을 경우 기본 아이콘 표시
@@ -369,8 +370,8 @@ class _PostDetailPageState extends State<PostDetailPage> {
                           },
                         ),
                         title: FutureBuilder<Map<String, String>>(
-                          future: _fetchProfileInfo(comment[
-                              'username']), // username에 해당하는 닉네임을 가져옴
+                          future: _fetchProfileInfo(
+                              comment['username']), // username에 해당하는 닉네임을 가져옴
                           builder: (context, snapshot) {
                             if (snapshot.connectionState ==
                                 ConnectionState.waiting) {
@@ -382,7 +383,8 @@ class _PostDetailPageState extends State<PostDetailPage> {
                               return Row(
                                 children: [
                                   Text(
-                                    profileInfo['nickname'] ?? '', // 닉네임이 없을 경우 빈 문자열 표시
+                                    profileInfo['nickname'] ??
+                                        '', // 닉네임이 없을 경우 빈 문자열 표시
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -408,7 +410,8 @@ class _PostDetailPageState extends State<PostDetailPage> {
                         ),
                         trailing: comment['username'] == widget.username
                             ? IconButton(
-                                icon: const Icon(Icons.delete, size: 20, color: Colors.red),
+                                icon: const Icon(Icons.delete,
+                                    size: 20, color: Colors.red),
                                 onPressed: () {
                                   // 키보드 숨기기
                                   FocusScope.of(context).unfocus();

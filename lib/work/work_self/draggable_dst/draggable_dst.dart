@@ -133,6 +133,7 @@ class _WorkDSTState extends State<WorkDST> {
               username: widget.username,
               showDeleteConfirmationDialog: showDeleteConfirmationDialog,
             );
+
             _locationTracker = LocationTracker(
               mapController: controller,
               username: widget.username,
@@ -150,6 +151,15 @@ class _WorkDSTState extends State<WorkDST> {
             await _mapController.clearOverlays(); // 기존 오버레이 제거
             await _markerManager?.loadMarkers(); // 마커 다시 로드
             controller.setLocationTrackingMode(NLocationTrackingMode.follow);
+          },
+          onMapTapped: (NPoint point, NLatLng latLng) async {
+            try {
+              await _markerManager
+                  ?.markFavoritePlace(latLng); //markFavoritePlace
+              debugPrint('위험 마커 생성: ${latLng.latitude}, ${latLng.longitude}');
+            } catch (e) {
+              debugPrint('마커 생성 중 오류: $e');
+            }
           },
           options: NaverMapViewOptions(
             locationButtonEnable: false,
