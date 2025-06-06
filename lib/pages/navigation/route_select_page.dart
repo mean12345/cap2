@@ -1,24 +1,20 @@
-// route_with_stopover_page.dart
+import 'package:dangq/colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'walking_tracking_page.dart';
-import 'package:dangq/colors.dart';
-import 'package:dangq/work/work_self/draggable_dst/draggable_dst.dart'; // 추가: MarkerManager가 있는 파일 import
+import 'dart:async'; // for Timer
+import 'package:dangq/work/work_self/draggable_dst/draggable_dst.dart'; // WorkDST 페이지 임포트
 
 class RouteWithStopoverPage extends StatefulWidget {
-  final String? username; // nullable로 변경
-  final int? dogId; // nullable로 변경
-  final String? dogName; // nullable로 변경
-
+  final String username;
+  final int dogId;
   const RouteWithStopoverPage({
     super.key,
-    this.username,
-    this.dogId,
-    this.dogName,
+    required this.username,
+    required this.dogId,
   });
 
   @override
@@ -27,83 +23,197 @@ class RouteWithStopoverPage extends StatefulWidget {
 
 class _RouteWithStopoverPageState extends State<RouteWithStopoverPage> {
   NaverMapController? _mapController;
-  MarkerManager? _markerManager;
   NLatLng? _start;
   NLatLng? _end;
   final List<NMarker> _stopoverMarkers = [];
   NMarker? _startMarker;
   NMarker? _endMarker;
+  Position? currentPosition;
 
   // 경로 표시를 위한 변수들
   List<NLatLng> _routePath = [];
   NPolylineOverlay? _routePolyline;
   bool _isRouteVisible = false;
 
-  // 사용법 표시 상태
-  bool _showInstructions = false;
-  String? profileImage;
-  bool _isLoading = false;
+  Timer? _locationTimer;
+
+  // 마커 선택 모드 추가
+  String _selectionMode = 'none'; // 'none', 'start', 'end'
+
+  // 역방향 경로 변수 추가
+  NPolylineOverlay? _forwardRoutePolyline;
+  NPolylineOverlay? _reverseRoutePolyline;
+  List<NLatLng> _forwardPath = [];
+  List<NLatLng> _reversePath = [];
 
   @override
   void initState() {
     super.initState();
-    _setCurrentLocation();
-    _fetchDogProfiles();
+    _initializeLocation();
   }
 
-  Future<void> _setCurrentLocation() async {
+  @override
+  void dispose() {
+    _locationTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _initializeLocation() async {
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('위치 서비스를 활성화해주세요.')),
+        );
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('위치 권한이 필요합니다.')),
+          );
+          return;
+        }
+      }
+
+      await getCurrentLocation();
+      if (currentPosition != null) {
+        // 현재 위치를 출발지로 자동 설정
+        _setStartLocation(
+          NLatLng(currentPosition!.latitude, currentPosition!.longitude),
+        );
+      }
+
+      // 주기적으로 위치 업데이트 (10초마다)
+      _locationTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+        _updateCurrentLocation();
+      });
+    } catch (e) {
+      print('위치 초기화 에러: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('위치를 가져오는데 실패했습니다.')),
+      );
+    }
+  }
+
+  Future<void> getCurrentLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) return;
+    if (!serviceEnabled) {
+      throw Exception('위치 서비스가 비활성화되어 있습니다.');
+    }
 
     LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) {
+    if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
-      if (permission != LocationPermission.whileInUse &&
-          permission != LocationPermission.always) {
-        return;
+      if (permission == LocationPermission.denied) {
+        throw Exception('위치 권한이 거부되었습니다.');
       }
     }
 
-    Position position = await Geolocator.getCurrentPosition();
-    NLatLng current = NLatLng(position.latitude, position.longitude);
+    if (permission == LocationPermission.deniedForever) {
+      throw Exception('위치 권한이 영구적으로 거부되었습니다.');
+    }
 
-    setState(() {
-      _start = current;
-      _end = current;
-
-      _startMarker = NMarker(
-        id: 'start',
-        position: _start!,
-        iconTintColor: Colors.blue,
-        caption: NOverlayCaption(text: '출·도착'),
-      );
-
-      _endMarker = NMarker(
-        id: 'end',
-        position: _end!,
-        iconTintColor: Colors.green,
-        //caption: NOverlayCaption(text: '도착지'), 글씨가 겹쳐보여서 하나 지움
-      );
-    });
-
-    // 마커들을 지도에 추가
-    if (_mapController != null) {
-      _updateMarkersOnMap();
+    try {
+      currentPosition = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high);
+    } catch (e) {
+      throw Exception('위치를 가져오는 데 실패했습니다: $e');
     }
   }
 
+  Future<void> _updateCurrentLocation() async {
+    try {
+      await getCurrentLocation();
+      if (currentPosition == null) return;
+
+      if (_mapController != null) {
+        await _mapController!.updateCamera(
+          NCameraUpdate.withParams(
+            target:
+                NLatLng(currentPosition!.latitude, currentPosition!.longitude),
+            zoom: 15,
+          ),
+        );
+      }
+    } catch (e) {
+      print('위치 업데이트 에러: $e');
+    }
+  }
+
+  // 지도 탭 이벤트 수정
   void _onMapTapped(NPoint point, NLatLng latLng) {
-    _addStopoverMarker(latLng);
+    switch (_selectionMode) {
+      case 'start':
+        _setStartLocation(latLng);
+        break;
+      case 'end':
+        _setEndLocation(latLng);
+        break;
+    }
+  }
+
+  // 출발지 설정
+  void _setStartLocation(NLatLng latLng) {
+    print('출발지 설정: 위도=${latLng.latitude}, 경도=${latLng.longitude}');
+    setState(() {
+      _start = latLng;
+      _startMarker = NMarker(
+        id: 'start',
+        position: latLng,
+        icon:
+            NOverlayImage.fromAssetImage('assets/images/startingpoint_pin.png'),
+        size: Size(50.0, 60.0),
+        caption: NOverlayCaption(text: '출발지'),
+      );
+      _selectionMode = 'none';
+    });
+    _updateMarkersOnMap();
+  }
+
+  // 도착지 설정
+  void _setEndLocation(NLatLng latLng) {
+    print('도착지 설정: 위도=${latLng.latitude}, 경도=${latLng.longitude}');
+    setState(() {
+      _end = latLng;
+      _endMarker = NMarker(
+        id: 'end',
+        position: latLng,
+        icon: NOverlayImage.fromAssetImage('assets/images/waypoint_pin.png'),
+        size: const Size(50.0, 60.0), // 시작점 마커와 동일한 크기로 설정
+        caption: NOverlayCaption(text: '경유지'),
+      );
+      _selectionMode = 'none';
+    });
+    _updateMarkersOnMap();
+  }
+
+  // 현재 위치를 출발지로 설정하는 함수 추가
+  void _setCurrentLocationAsStart() async {
+    try {
+      await getCurrentLocation();
+      if (currentPosition == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('현재 위치를 가져올 수 없습니다')),
+        );
+        return;
+      }
+
+      _setStartLocation(
+          NLatLng(currentPosition!.latitude, currentPosition!.longitude));
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('현재 위치 설정 실패')),
+      );
+    }
   }
 
   Future<void> _updateMarkersOnMap() async {
     if (_mapController == null) return;
 
     await _mapController!.clearOverlays();
-
-    // 기존 마커들과 함께 good/bad 마커도 표시
-    await _markerManager?.loadMarkers();
 
     // 출발지 마커 추가
     if (_startMarker != null) {
@@ -115,157 +225,104 @@ class _RouteWithStopoverPageState extends State<RouteWithStopoverPage> {
       await _mapController!.addOverlay(_endMarker!);
     }
 
-    // 경유지 마커들 추가
-    for (final marker in _stopoverMarkers) {
-      await _mapController!.addOverlay(marker);
-    }
-
     // 경로 polyline 다시 추가
     if (_routePolyline != null && _isRouteVisible) {
       await _mapController!.addOverlay(_routePolyline!);
     }
   }
 
-  void _addStopoverMarker(NLatLng latLng) {
-    final id = 'stopover_${_stopoverMarkers.length}';
-    final marker = NMarker(
-      id: id,
-      position: latLng,
-      iconTintColor: Colors.yellow,
-    );
-
-    // 마커 캡션 설정
-    marker.setCaption(
-        NOverlayCaption(text: '경유지 ${_stopoverMarkers.length + 1}'));
-
-    // 마커 클릭 이벤트 추가
-    marker.setOnTapListener((NMarker marker) {
-      showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: const Text('경유지 삭제'),
-            content: const Text('이 경유지를 삭제하시겠습니까?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('취소'),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  setState(() {
-                    _stopoverMarkers
-                        .removeWhere((m) => m.info.id == marker.info.id);
-                    // 남은 경유지 마커들의 캡션 번호 재정렬
-                    for (int i = 0; i < _stopoverMarkers.length; i++) {
-                      _stopoverMarkers[i]
-                          .setCaption(NOverlayCaption(text: '경유지 ${i + 1}'));
-                    }
-                  });
-                  _updateMarkersOnMap();
-                },
-                child: const Text('삭제'),
-              ),
-            ],
-          );
-        },
-      );
-    });
-
-    setState(() {
-      _stopoverMarkers.add(marker);
-    });
-
-    // 마커를 지도에 추가
-    _updateMarkersOnMap();
-  }
-
   Future<void> _clearRoute() async {
-    if (_mapController != null && _routePolyline != null) {
-      await _mapController!.deleteOverlay(_routePolyline!.info);
+    if (_mapController != null) {
+      if (_forwardRoutePolyline != null) {
+        await _mapController!.deleteOverlay(_forwardRoutePolyline!.info);
+      }
+      if (_reverseRoutePolyline != null) {
+        await _mapController!.deleteOverlay(_reverseRoutePolyline!.info);
+      }
     }
 
     setState(() {
-      _routePath.clear();
-      _routePolyline = null;
+      _forwardPath.clear();
+      _reversePath.clear();
+      _forwardRoutePolyline = null;
+      _reverseRoutePolyline = null;
       _isRouteVisible = false;
     });
   }
 
-  Future<void> _displayRoute(List<dynamic> pathData) async {
+  Future<void> _displayBothRoutes(
+      List<dynamic> forwardPath, List<dynamic> reversePath) async {
     if (_mapController == null) return;
 
-    // 기존 경로 삭제
     await _clearRoute();
 
-    // 경로 데이터를 NLatLng 리스트로 변환
-    final List<NLatLng> routePoints = pathData.map((point) {
-      return NLatLng(point['lat'].toDouble(), point['lng'].toDouble());
-    }).toList();
+    // 정방향 경로
+    final List<NLatLng> forwardPoints = forwardPath
+        .map((point) =>
+            NLatLng(point['lat'].toDouble(), point['lng'].toDouble()))
+        .toList();
 
-    // Polyline 생성
-    final polyline = NPolylineOverlay(
-      id: 'route_polyline',
-      coords: routePoints,
+    // 역방향 경로
+    final List<NLatLng> reversePoints = reversePath
+        .map((point) =>
+            NLatLng(point['lat'].toDouble(), point['lng'].toDouble()))
+        .toList();
+
+    // 시작점과 끝점 마커 추가
+    if (forwardPoints.isNotEmpty) {
+      final startMarker = NMarker(
+        id: 'route_start',
+        position: forwardPoints.first,
+        iconTintColor: Colors.blue,
+        caption: NOverlayCaption(
+          text: '출발',
+          color: Colors.blue,
+          textSize: 14,
+        ),
+      );
+      await _mapController!.addOverlay(startMarker);
+
+      final endMarker = NMarker(
+        id: 'route_end',
+        position: forwardPoints.last,
+        iconTintColor: Colors.red,
+        caption: NOverlayCaption(
+          text: '도착',
+          color: Colors.red,
+          textSize: 14,
+        ),
+      );
+      await _mapController!.addOverlay(endMarker);
+    }
+
+    // 경로 표시
+    // 정방향 폴리라인 (파란색)
+    _forwardRoutePolyline = NPolylineOverlay(
+      id: 'forward_route',
+      coords: forwardPoints,
       color: Colors.blue,
       width: 5,
     );
 
-    // 지도에 polyline 추가
-    await _mapController!.addOverlay(polyline);
-
-    setState(() {
-      _routePath = routePoints;
-      _routePolyline = polyline;
-      _isRouteVisible = true;
-    });
-
-    // 경로가 모두 보이도록 카메라 조정
-    if (routePoints.isNotEmpty) {
-      await _fitCameraToRoute(routePoints);
-    }
-  }
-
-  Future<void> _fitCameraToRoute(List<NLatLng> points) async {
-    if (_mapController == null || points.isEmpty) return;
-
-    // 경로의 바운딩 박스 계산
-    double minLat = points.first.latitude;
-    double maxLat = points.first.latitude;
-    double minLng = points.first.longitude;
-    double maxLng = points.first.longitude;
-
-    for (final point in points) {
-      minLat = minLat < point.latitude ? minLat : point.latitude;
-      maxLat = maxLat > point.latitude ? maxLat : point.latitude;
-      minLng = minLng < point.longitude ? minLng : point.longitude;
-      maxLng = maxLng > point.longitude ? maxLng : point.longitude;
-    }
-
-    // 약간의 패딩 추가
-    const double padding = 0.001;
-    final NLatLngBounds bounds = NLatLngBounds(
-      southWest: NLatLng(minLat - padding, minLng - padding),
-      northEast: NLatLng(maxLat + padding, maxLng + padding),
+    // 역방향 폴리라인 (빨간색)
+    _reverseRoutePolyline = NPolylineOverlay(
+      id: 'reverse_route',
+      coords: reversePoints,
+      color: Colors.blue,
+      width: 5,
     );
 
-    // 카메라 이동
-    await _mapController!.updateCamera(
-        NCameraUpdate.fitBounds(bounds, padding: const EdgeInsets.all(50)));
+    await _mapController!.addOverlay(_forwardRoutePolyline!);
+    await _mapController!.addOverlay(_reverseRoutePolyline!);
+
+    setState(() {
+      _forwardPath = forwardPoints;
+      _reversePath = reversePoints;
+      _isRouteVisible = true;
+    });
   }
 
-  Future<void> _requestRouteWithStopovers() async {
-    if (_stopoverMarkers.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('경유지를 선택해주세요'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-      return;
-    }
-
+  Future<void> _requestBothRoutes() async {
     if (_start == null || _end == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('출발지와 도착지가 설정되어야 합니다.')),
@@ -273,62 +330,70 @@ class _RouteWithStopoverPageState extends State<RouteWithStopoverPage> {
       return;
     }
 
-    // 로딩 표시
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(),
-      ),
+      builder: (context) => const Center(child: CircularProgressIndicator()),
     );
 
-    final stopovers = _stopoverMarkers.map((m) {
-      return {'lat': m.position.latitude, 'lng': m.position.longitude};
-    }).toList();
-
+    final String baseUrl = dotenv.get('BASE_URL');
     final body = jsonEncode({
       'start': {'lat': _start!.latitude, 'lng': _start!.longitude},
       'end': {'lat': _end!.latitude, 'lng': _end!.longitude},
-      'stopovers': stopovers,
     });
-    final String baseUrl = dotenv.get('BASE_URL');
 
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/direction/getPath'),
-        headers: {'Content-Type': 'application/json'},
-        body: body,
-      );
+      final responses = await Future.wait([
+        http.post(
+          Uri.parse('$baseUrl/direction/getPath'),
+          headers: {'Content-Type': 'application/json'},
+          body: body,
+        ),
+        http.post(
+          Uri.parse('$baseUrl/direction/getReversePath'),
+          headers: {'Content-Type': 'application/json'},
+          body: body,
+        ),
+      ]);
 
-      // 로딩 다이얼로그 닫기
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(); // 로딩 다이얼로그 닫기
 
-      if (response.statusCode == 200) {
-        final decoded = jsonDecode(response.body);
-        final List<dynamic> path = decoded['path'];
+      if (responses[0].statusCode == 200 && responses[1].statusCode == 200) {
+        final forwardPath = jsonDecode(responses[0].body)['path'] as List;
+        final reversePath = jsonDecode(responses[1].body)['path'] as List;
 
-        // 산책 추적 페이지로 이동
+        // 타입 안전한 변환 로직으로 수정
+        final List<NLatLng> forwardPoints = List<NLatLng>.from(
+          forwardPath.map((point) => NLatLng(
+                (point['lat'] as num).toDouble(),
+                (point['lng'] as num).toDouble(),
+              )),
+        );
+
+        final List<NLatLng> reversePoints = List<NLatLng>.from(
+          reversePath.map((point) => NLatLng(
+                (point['lat'] as num).toDouble(),
+                (point['lng'] as num).toDouble(),
+              )),
+        );
+
+        // WorkDST로 이동하며 경로 전달
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => WalkingTrackingPage(
-              routePath: path
-                  .map((point) =>
-                      NLatLng(point['lat'].toDouble(), point['lng'].toDouble()))
-                  .toList(),
-              stopovers: _stopoverMarkers.map((m) => m.position).toList(),
+            builder: (context) => WorkDST(
+              username: widget.username,
+              dogId: widget.dogId,
+              forwardPath: forwardPoints,
+              reversePath: reversePoints,
             ),
           ),
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('서버 오류: ${response.statusCode}')),
-        );
+        throw Exception('경로 요청 실패');
       }
     } catch (e) {
-      // 로딩 다이얼로그 닫기
       Navigator.of(context).pop();
-
       print('HTTP 오류: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('경로 요청 중 오류 발생')),
@@ -336,195 +401,72 @@ class _RouteWithStopoverPageState extends State<RouteWithStopoverPage> {
     }
   }
 
-  void _clearAllStopovers() {
-    setState(() {
-      _stopoverMarkers.clear();
-    });
-    _updateMarkersOnMap();
-  }
-
-  Future<void> _moveToCurrentLocation() async {
-    if (_mapController == null || _start == null) return;
-
-    await _mapController!.updateCamera(
-      NCameraUpdate.withParams(
-        target: _start!,
-        zoom: 15,
-      ),
-    );
-  }
-
-  Future<void> _fetchDogProfiles() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    final String baseUrl = dotenv.get('BASE_URL');
-
-    try {
-      final url = '$baseUrl/dogs/get_dogs?username=${widget.username}';
-      final response = await http.get(Uri.parse(url));
-
-      if (response.statusCode == 404) {
-        setState(() {
-          profileImage = null;
-          _isLoading = false;
-        });
-        return;
-      }
-
-      if (response.statusCode == 200) {
-        final List<dynamic> jsonResponse = json.decode(response.body);
-        final dog = jsonResponse.firstWhere(
-          (dog) => dog['id'] == widget.dogId,
-          orElse: () => null,
-        );
-
-        setState(() {
-          profileImage = dog != null ? dog['imageUrl'] as String? : null;
-          _isLoading = false;
-        });
-      } else {
-        setState(() {
-          _isLoading = false;
-        });
-        throw Exception('Failed to load dog profiles');
-      }
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      print('예외 발생: $e');
-      rethrow;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true,
+      extendBodyBehindAppBar: true, // 추가: body를 AppBar 뒤로 확장
       appBar: AppBar(
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+        title: const Text('경로 탐색'),
         backgroundColor: Colors.transparent,
-        elevation: 0,
+        foregroundColor: Colors.black,
+        elevation: 0, // 추가: 그림자 제거
         actions: [
-          if (_isRouteVisible)
-            IconButton(
-              icon: const Icon(Icons.route_outlined),
-              onPressed: _clearRoute,
-              tooltip: '경로 숨기기',
+          // 현재 위치를 출발지로 설정하는 버튼 추가
+          IconButton(
+            icon: const Icon(Icons.my_location),
+            onPressed: _setCurrentLocationAsStart,
+            tooltip: '현재 위치를 출발지로 설정',
+          ),
+          IconButton(
+            icon: Icon(
+              Icons.place,
+              color: _selectionMode == 'start' ? Colors.blue : Colors.blue,
+              size: 28,
             ),
+            onPressed: () {
+              setState(() {
+                _selectionMode = _selectionMode == 'start' ? 'none' : 'start';
+              });
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('지도를 터치하여 출발지를 선택하세요'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+            tooltip: '출발지 선택',
+          ),
+          // 도착지 설정 버튼
+          IconButton(
+            icon: Icon(Icons.location_on,
+                color: _selectionMode == 'end' ? Colors.green : Colors.red),
+            onPressed: () {
+              setState(() {
+                _selectionMode = _selectionMode == 'end' ? 'none' : 'end';
+              });
+            },
+            tooltip: '도착지 설정',
+          ),
         ],
       ),
       body: Stack(
         children: [
           NaverMap(
-            onMapReady: (controller) async {
-              _mapController = controller;
-              _markerManager = MarkerManager(
-                mapController: controller,
-                username: widget.username ?? '',
-                showDeleteConfirmationDialog: (markerName, markerId) {
-                  // 마커 삭제 다이얼로그 구현
-                  showDialog(
-                    context: context,
-                    builder: (BuildContext context) {
-                      return AlertDialog(
-                        title: const Text('마커 삭제'),
-                        content: const Text('이 마커를 삭제하시겠습니까?'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(),
-                            child: const Text('취소'),
-                          ),
-                          TextButton(
-                            onPressed: () async {
-                              await _markerManager
-                                  ?.deleteMarkerFromDB(markerName);
-                              await _mapController?.clearOverlays();
-                              await _markerManager?.loadMarkers();
-                              Navigator.of(context).pop();
-                            },
-                            child: const Text('삭제'),
-                          ),
-                        ],
-                      );
-                    },
-                  );
-                },
-              );
-              await _setCurrentLocation();
-              await _markerManager?.loadMarkers();
-
-              // 현재 위치로 카메라 이동 추가
-              if (_start != null) {
-                await controller.updateCamera(
-                  NCameraUpdate.withParams(
-                    target: _start!,
-                    zoom: 15,
-                    bearing: 0,
-                    tilt: 0,
-                  ),
-                );
-              }
-            },
-            onMapTapped: _onMapTapped,
             options: const NaverMapViewOptions(
-              locationButtonEnable: false,
-              indoorEnable: false,
-              scaleBarEnable: false,
+              locationButtonEnable: false, // 현재 위치 버튼 비활성화
+              scaleBarEnable: false, // 줌 레벨 표시 비활성화
               initialCameraPosition: NCameraPosition(
                 target: NLatLng(35.853488, 128.488708),
                 zoom: 14,
               ),
             ),
+            onMapReady: (controller) {
+              _mapController = controller;
+              controller.setLocationTrackingMode(NLocationTrackingMode.follow);
+              _updateMarkersOnMap();
+            },
+            onMapTapped: _onMapTapped,
           ),
-
-          // 사용법 안내 (토글 가능)
-          if (_showInstructions)
-            Positioned(
-              top: kToolbarHeight +
-                  MediaQuery.of(context).padding.top +
-                  80, // 정보 패널 아래로 조정
-              right: 10,
-              child: Card(
-                color: AppColors.background,
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: const [
-                      Text(
-                        '사용법',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        '• 지도 터치로 경유지 추가',
-                        style: TextStyle(color: Colors.black, fontSize: 12),
-                      ),
-                      Text(
-                        '• 초록색: 현재 위치',
-                        style: TextStyle(color: Colors.black, fontSize: 12),
-                      ),
-                      Text(
-                        '• 노란색: 경유지',
-                        style: TextStyle(color: Colors.black, fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
 
           // 하단 버튼들
           Positioned(
@@ -534,29 +476,6 @@ class _RouteWithStopoverPageState extends State<RouteWithStopoverPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (_stopoverMarkers.isNotEmpty || _isRouteVisible)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Row(
-                        /* 어떤 조건을 만족해야 나오는 코드인지 몰라서 일단 주석처리
-                      children: [
-                        if (_stopoverMarkers.isNotEmpty && _isRouteVisible)
-                          const SizedBox(width: 10),
-                        if (_isRouteVisible)
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red,
-                                foregroundColor: Colors.white,
-                              ),
-                              onPressed: _clearRoute,
-                              icon: const Icon(Icons.route_outlined, size: 18),
-                              label: const Text('경로 삭제'),
-                            ),
-                          ),
-                      ],*/
-                        ),
-                  ),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
@@ -565,60 +484,13 @@ class _RouteWithStopoverPageState extends State<RouteWithStopoverPage> {
                       foregroundColor: Colors.black,
                       padding: const EdgeInsets.symmetric(vertical: 15),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(5),
+                        borderRadius: BorderRadius.circular(5), // 라운드 값 5 설정
                       ),
                     ),
-                    onPressed: _requestRouteWithStopovers,
+                    onPressed: _requestBothRoutes,
                     icon: const Icon(Icons.navigation),
-                    label: Text(
-                      _stopoverMarkers.isEmpty ? '경로 탐색' : '경유지 포함 경로 탐색',
-                    ),
+                    label: const Text('경로 추천'),
                   ),
-                ),
-              ],
-            ),
-          ),
-
-          // 프로필 이미지와 도움말 아이콘
-          Positioned(
-            top: MediaQuery.of(context).size.height * 0.05,
-            right: 16,
-            child: Column(
-              children: [
-                Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    shape: BoxShape.circle,
-                  ),
-                  child: _isLoading
-                      ? const CircularProgressIndicator()
-                      : profileImage != null
-                          ? ClipOval(
-                              child: Image.network(
-                                profileImage!,
-                                fit: BoxFit.cover,
-                              ),
-                            )
-                          : const Icon(
-                              Icons.person,
-                              color: Colors.white,
-                              size: 30,
-                            ),
-                ),
-                const SizedBox(height: 5),
-                IconButton(
-                  icon: Icon(
-                    _showInstructions ? Icons.help : Icons.help_outline,
-                    color: Colors.black,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _showInstructions = !_showInstructions;
-                    });
-                  },
-                  tooltip: '사용법',
                 ),
               ],
             ),

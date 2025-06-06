@@ -96,17 +96,31 @@ class _WorkState extends State<Work> {
     return MaterialApp(
       home: Scaffold(
         extendBodyBehindAppBar: true,
-        appBar: AppBar(
-          toolbarHeight: MediaQuery.of(context).size.height * 0.05,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () {
-              Navigator.pop(context);
-            },
+        appBar: PreferredSize(
+          preferredSize:
+              Size.fromHeight(MediaQuery.of(context).size.height * 0.05),
+          child: Transform.translate(
+            offset: const Offset(0, 10),
+            child: AppBar(
+              title: const Text(
+                '산책',
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+              ),
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              systemOverlayStyle: SystemUiOverlayStyle.dark,
+            ),
           ),
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          systemOverlayStyle: SystemUiOverlayStyle.dark,
         ),
         body: Stack(
           children: [
@@ -117,10 +131,6 @@ class _WorkState extends State<Work> {
               child: Container(
                 width: 50,
                 height: 50,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  shape: BoxShape.circle,
-                ),
                 child: _isLoading
                     ? const CircularProgressIndicator()
                     : profileImage != null
