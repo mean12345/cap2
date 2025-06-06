@@ -11,7 +11,6 @@ import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'dart:math'; // 추가: min, max 함수 사용을 위해
 import 'package:dangq/work_list/work_route.dart'; // 추가
 
-
 class WorkList extends StatefulWidget {
   final String username;
   final int dogId;
@@ -182,14 +181,14 @@ class _WorkListState extends State<WorkList> {
     }
   }
 
-DateTime? parseKoreanDateTime(String dateStr) {
-  try {
-    final format = DateFormat('yyyy. M. d. a h:mm:ss', 'ko');
-    return format.parse(dateStr);
-  } catch (e) {
-    return null;
+  DateTime? parseKoreanDateTime(String dateStr) {
+    try {
+      final format = DateFormat('yyyy. M. d. a h:mm:ss', 'ko');
+      return format.parse(dateStr);
+    } catch (e) {
+      return null;
+    }
   }
-}
 
   void _calculateMonthlyTotals() {
     try {

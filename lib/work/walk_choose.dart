@@ -1,15 +1,17 @@
 // lib/work/walk_choose.dart
 
+import 'dart:async';
 import 'dart:convert';
 import 'package:dangq/colors.dart';
-import 'package:dangq/work/work_self/work.dart'; // 이미 구현된 Work 화면
-import 'package:dangq/work/dog_list.dart'; // 이미 구현된 DogListPage
+import 'package:dangq/work/work_self/work.dart';
+import 'package:dangq/work/dog_list.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // SystemUiOverlayStyle 사용
+import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:http/http.dart' as http;
-import 'package:dangq/pages/navigation/route_select_page.dart';
+import 'package:dangq/pages/navigation/route_select_page.dart'; // route.dart import
+import 'package:geolocator/geolocator.dart'; // 상단에 추가
 
 class WalkChoose extends StatefulWidget {
   final String username;
@@ -43,12 +45,58 @@ class WalkChooseState extends State<WalkChoose> {
   NaverMapController? _mapController;
   List<NLatLng> _routeCoords = [];
 
+  // 현재 위치 관련 변수 추가
+  NLatLng? _currentLocation;
+  bool _locationLoading = true;
+
+  bool _isTracking = false;
+  Timer? _locationTimer;
+
   @override
   void initState() {
     super.initState();
     _selectedDogId = widget.dogId;
     _selectedDogName = widget.dogName;
     _fetchDogProfiles();
+    _getCurrentLocation(); // 현재 위치 가져오기
+  }
+
+  void _startLocationTracking() {
+    _locationTimer?.cancel();
+    _locationTimer =
+        Timer.periodic(const Duration(milliseconds: 1500), (timer) async {
+      // 1.5초 간격으로 변경
+      try {
+        Position position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.medium, // 정확도를 medium으로 설정
+          timeLimit: const Duration(seconds: 2), // 타임아웃 2초로 설정
+        );
+        if (mounted) {
+          setState(() {
+            _currentLocation = NLatLng(position.latitude, position.longitude);
+          });
+          if (_mapController != null) {
+            await _mapController!.updateCamera(
+              NCameraUpdate.withParams(
+                target: _currentLocation!,
+                zoom: 15,
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        debugPrint('위치 업데이트 오류: $e');
+      }
+    });
+    setState(() {
+      _isTracking = true;
+    });
+  }
+
+  @override
+  void dispose() {
+    _locationTimer?.cancel(); // 페이지 종료 시 타이머 취소
+    super.dispose();
   }
 
   void _updateSelectedDog(int dogId, String dogName, String imageUrl) {
@@ -117,14 +165,55 @@ class WalkChooseState extends State<WalkChoose> {
     }
   }
 
+  // 현재 위치 가져오는 함수
+  Future<void> _getCurrentLocation() async {
+    try {
+      // 먼저 마지막으로 알려진 위치를 가져옴 (즉시 응답)
+      Position? lastKnownPosition = await Geolocator.getLastKnownPosition();
+      if (lastKnownPosition != null) {
+        setState(() {
+          _currentLocation =
+              NLatLng(lastKnownPosition.latitude, lastKnownPosition.longitude);
+          _locationLoading = false;
+        });
+      }
+
+      // 권한 체크와 실제 위치 가져오기를 병렬로 처리
+      await Future.wait([
+        Geolocator.requestPermission(),
+        Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.medium, // 정확도를 medium으로 낮춤
+          timeLimit: const Duration(seconds: 3), // 타임아웃 설정
+        ).then((position) {
+          setState(() {
+            _currentLocation = NLatLng(position.latitude, position.longitude);
+            _locationLoading = false;
+          });
+        }).catchError((e) {
+          debugPrint('정확한 위치 가져오기 실패: $e');
+        }),
+      ]);
+    } catch (e) {
+      setState(() => _locationLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         toolbarHeight: MediaQuery.of(context).size.height * 0.05,
+        title: const Text(
+          '산책',
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 18,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black, size: 35),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () {
             Navigator.pop(context, {
               'dogId': _selectedDogId,
@@ -139,17 +228,28 @@ class WalkChooseState extends State<WalkChoose> {
       ),
       body: Stack(
         children: [
-          // ────────────────────────────────────────────────────
-          // (1) NaverMap 위젯: 컨트롤러 취득
-          // ────────────────────────────────────────────────────
           NaverMap(
-            onMapReady: (controller) {
+            onMapReady: (controller) async {
               _mapController = controller;
+              controller.setLocationTrackingMode(NLocationTrackingMode.follow);
+              _startLocationTracking();
+
+              if (_currentLocation != null) {
+                await controller.updateCamera(
+                  NCameraUpdate.withParams(
+                    target: _currentLocation!,
+                    zoom: 15,
+                  ),
+                );
+              }
             },
-            options: const NaverMapViewOptions(
-              locationButtonEnable: false,
+            options: NaverMapViewOptions(
+              locationButtonEnable: true,
+              indoorEnable: true,
+              consumeSymbolTapEvents: false,
               initialCameraPosition: NCameraPosition(
-                target: NLatLng(37.5666102, 126.9783881),
+                target:
+                    _currentLocation ?? const NLatLng(37.5666102, 126.9783881),
                 zoom: 15,
               ),
             ),
@@ -178,89 +278,32 @@ class WalkChooseState extends State<WalkChoose> {
                         final routeResult = await Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const RouteWithStopoverPage(),
+                            builder: (context) => RouteWithStopoverPage(
+                              username: widget.username,
+                              dogId: widget.dogId,
+                            ),
                           ),
                         );
 
-                        if (routeResult == null ||
-                            routeResult['allPoints'] == null) {
-                          // 뒤로 돌아오거나 경유지 선택 취소 시 아무 작업 안 함
+                        // routeResult가 null이면 함수 종료
+                        if (routeResult == null) {
                           return;
                         }
-                        final List<dynamic> allPoints =
-                            routeResult['allPoints'];
 
-                        // A) allPoints → List<NLatLng>
-                        List<NLatLng> baseRoute = allPoints.map((p) {
-                          return NLatLng(p['lat'], p['lng']);
-                        }).toList();
-
-                        // B) 서버의 /getPath 엔드포인트 호출
-                        try {
-                          final uri = Uri.parse('$baseUrl/getPath');
-                          final body = {
-                            'start': {
-                              'lat': baseRoute.first.latitude,
-                              'lng': baseRoute.first.longitude,
-                            },
-                            'end': {
-                              'lat': baseRoute.last.latitude,
-                              'lng': baseRoute.last.longitude,
-                            },
-                            'stopovers': baseRoute.length > 2
-                                ? baseRoute
-                                    .sublist(1, baseRoute.length - 1)
-                                    .map((pt) => {
-                                          'lat': pt.latitude,
-                                          'lng': pt.longitude,
-                                        })
-                                    .toList()
-                                : [],
-                          };
-
-                          final response = await http.post(
-                            uri,
-                            headers: {'Content-Type': 'application/json'},
-                            body: jsonEncode(body),
-                          );
-
-                          if (response.statusCode == 200) {
-                            final data = jsonDecode(response.body);
-                            final List<dynamic> path = data['path'];
-
-                            // [{lat, lng}, …] → List<NLatLng>
-                            final List<NLatLng> coords = path
-                                .map((p) => NLatLng(
-                                    (p['lat'] as num).toDouble(),
-                                    (p['lng'] as num).toDouble()))
-                                .toList();
-
-                            // 지도에 폴리라인 그리기
-                            await _drawRoute(coords);
-
-                            // Work 화면으로 이동
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => Work(
-                                  username: widget.username,
-                                  dogId: _selectedDogId,
-                                  dogName: _selectedDogName,
-                                  // 필요 시: pathCoords: coords
-                                ),
+                        // 경로가 생성된 경우에만 Work 화면으로 이동
+                        if (routeResult is Map<String, dynamic> &&
+                            routeResult.containsKey('forwardPath') &&
+                            routeResult.containsKey('reversePath')) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => Work(
+                                username: widget.username,
+                                dogId: _selectedDogId,
+                                dogName: _selectedDogName,
+                                // 필요 시: pathCoords: coords
                               ),
-                            );
-                          } else {
-                            // API 호출 실패 시
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('경로 추천 실패 (서버 오류)')),
-                            );
-                          }
-                        } catch (e) {
-                          print('▶ 경로 추천 예외: $e');
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('경로 추천 중 오류가 발생했습니다.')),
+                            ),
                           );
                         }
                       },
