@@ -43,7 +43,7 @@ class _WorkListState extends State<WorkList> {
   // 월별 총계 데이터
   String _monthlyTotalWalkTime = '00:00:00';
   String _monthlyTotalDistance = '0.00';
-  String _monthlyTotalSpeed = '0';
+  String _monthlyTotalCount = '0';
 
   @override
   void initState() {
@@ -198,25 +198,21 @@ DateTime? parseKoreanDateTime(String dateStr) {
 
       Duration totalDuration = Duration();
       double totalDistance = 0.0;
-      double totalSpeedSum = 0.0;
-      int speedCount = 0;
+      int walkCount = 0;
 
       for (var item in workItems) {
         DateTime itemDate = item['date'];
         if (itemDate.month == currentMonth && itemDate.year == currentYear) {
           totalDuration += item['walkTimeDuration'] as Duration;
           totalDistance += item['distanceValue'] as double;
-          totalSpeedSum += (item['speedValue'] as num).toDouble();
-          speedCount++;
+          walkCount++;
         }
       }
-
-      double averageSpeed = speedCount > 0 ? totalSpeedSum / speedCount : 0.0;
 
       setState(() {
         _monthlyTotalWalkTime = _formatDuration(totalDuration);
         _monthlyTotalDistance = totalDistance.toStringAsFixed(2);
-        _monthlyTotalSpeed = averageSpeed.toStringAsFixed(2);
+        _monthlyTotalCount = walkCount.toString();
       });
     } catch (e) {
       print('월별 총계 계산 오류: $e');
@@ -404,26 +400,23 @@ DateTime? parseKoreanDateTime(String dateStr) {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: PreferredSize(
-        preferredSize:
-            Size.fromHeight(MediaQuery.of(context).size.height * 0.05),
-        child: AppBar(
-          scrolledUnderElevation: 0,
-          leading: GestureDetector(
-            onTap: () => Navigator.pop(context),
-            child: Image.asset('assets/images/back.png'),
+      appBar: AppBar(
+        scrolledUnderElevation: 0,
+        toolbarHeight: MediaQuery.of(context).size.height * 0.07,
+        title: const Text(
+          '일정 목록',
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 18,
+            fontWeight: FontWeight.w500,
           ),
-          title: Text(
-            '산책 기록',
-            style: TextStyle(
-              color: Colors.black,
-              fontSize: 18,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          backgroundColor: AppColors.background, // 배경색 변경
-          elevation: 0,
         ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0,
       ),
       body: isLoading
           ? Center(child: CircularProgressIndicator())
@@ -559,8 +552,8 @@ DateTime? parseKoreanDateTime(String dateStr) {
               ),
               SizedBox(width: 8),
               _buildMonthlySummaryCard(
-                '평균 속력',
-                '${double.parse(_monthlyTotalSpeed).toStringAsFixed(2)} km/h',
+                '산책 횟수',
+                _monthlyTotalCount,
                 Icons.directions_walk,
               ),
             ],
@@ -597,7 +590,7 @@ DateTime? parseKoreanDateTime(String dateStr) {
             ),
             SizedBox(height: 8),
             Text(
-              value,
+              title == '산책 횟수' ? '${value}회' : value,
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
