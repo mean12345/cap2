@@ -9,7 +9,7 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:dangq/work/dog_list.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'dart:math'; // 추가: min, max 함수 사용을 위해
-import 'package:dangq/work/work_route.dart'; // 추가
+import 'package:dangq/work_list/work_route.dart'; // 추가
 
 class WorkList extends StatefulWidget {
   final String username;
