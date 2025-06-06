@@ -7,6 +7,10 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:dangq/work/dog_list.dart';
+import 'package:flutter_naver_map/flutter_naver_map.dart';
+import 'dart:math'; // 추가: min, max 함수 사용을 위해
+import 'package:dangq/work_list/work_route.dart'; // 추가
+
 
 class WorkList extends StatefulWidget {
   final String username;
@@ -87,15 +91,7 @@ class _WorkListState extends State<WorkList> {
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
-
-        DateTime? parseKoreanDateTime(String dateStr) {
-          try {
-            final format = DateFormat('yyyy. M. d. a h:mm:ss', 'ko');
-            return format.parse(dateStr);
-          } catch (e) {
-            return null;
-          }
-        }
+        print('서버 응답 데이터: $data');
 
         setState(() {
           workItems = data.map((item) {
@@ -118,23 +114,47 @@ class _WorkListState extends State<WorkList> {
             double speedValue =
                 double.tryParse(item['speed']?.toString() ?? '0') ?? 0;
 
-            String createdAtStr = item['created_at'] ?? '';
-            DateTime createdAtDate = createdAtStr.isNotEmpty
-                ? (DateTime.tryParse(createdAtStr) ?? DateTime.now())
-                : DateTime.now();
+            DateTime recordDate = startTime ?? DateTime.now();
 
-            return {
-              'track_id': item['track_id']?.toString() ?? '',
-              'username': item['username']?.toString() ?? '',
-              'walkTime': _formatDuration(duration),
-              'walkTimeDuration': duration,
-              'distance': (distance / 1000).toStringAsFixed(2),
-              'distanceValue': distance / 1000,
-              'speed': speedValue.toStringAsFixed(2),
-              'speedValue': speedValue,
-              'created_at': createdAtDate.toIso8601String(),
-              'date': createdAtDate,
-            };
+            try {
+              var pathData = [];
+              if (item['path_data'] != null) {
+                if (item['path_data'] is String) {
+                  pathData = json.decode(item['path_data']);
+                } else {
+                  pathData = item['path_data'];
+                }
+              }
+
+              return {
+                'track_id': item['track_id']?.toString() ?? '',
+                'username': item['username']?.toString() ?? '',
+                'walkTime': _formatDuration(duration),
+                'walkTimeDuration': duration,
+                'distance': (distance / 1000).toStringAsFixed(2),
+                'distanceValue': distance / 1000,
+                'speed': speedValue.toStringAsFixed(2),
+                'speedValue': speedValue,
+                'created_at': recordDate.toIso8601String(),
+                'date': recordDate,
+                'path_data': pathData,
+              };
+            } catch (e) {
+              print('데이터 처리 오류: $e');
+              return {
+                'track_id': item['track_id']?.toString() ?? '',
+                'username': item['username']?.toString() ?? '',
+                'walkTime': _formatDuration(duration),
+                'walkTimeDuration': duration,
+                'distance': (distance / 1000).toStringAsFixed(2),
+                'distanceValue': distance / 1000,
+                'speed': speedValue.toStringAsFixed(2),
+                'speedValue': speedValue,
+                'created_at': recordDate.toIso8601String(),
+                'date': recordDate,
+                'path_data': [],
+              };
+            }
           }).toList();
 
           workoutsByDate = {};
@@ -161,6 +181,15 @@ class _WorkListState extends State<WorkList> {
       });
     }
   }
+
+DateTime? parseKoreanDateTime(String dateStr) {
+  try {
+    final format = DateFormat('yyyy. M. d. a h:mm:ss', 'ko');
+    return format.parse(dateStr);
+  } catch (e) {
+    return null;
+  }
+}
 
   void _calculateMonthlyTotals() {
     try {
@@ -375,23 +404,26 @@ class _WorkListState extends State<WorkList> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        scrolledUnderElevation: 0,
-        toolbarHeight: MediaQuery.of(context).size.height * 0.07,
-        title: const Text(
-          '일정 목록',
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 18,
-            fontWeight: FontWeight.w500,
+      appBar: PreferredSize(
+        preferredSize:
+            Size.fromHeight(MediaQuery.of(context).size.height * 0.05),
+        child: AppBar(
+          scrolledUnderElevation: 0,
+          leading: GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Image.asset('assets/images/back.png'),
           ),
+          title: Text(
+            '산책 기록',
+            style: TextStyle(
+              color: Colors.black,
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          backgroundColor: AppColors.background, // 배경색 변경
+          elevation: 0,
         ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
       ),
       body: isLoading
           ? Center(child: CircularProgressIndicator())
@@ -643,13 +675,6 @@ class _WorkListState extends State<WorkList> {
             color: Colors.black87,
             fontWeight: FontWeight.bold,
           ),
-          todayTextStyle: TextStyle(
-            color: Colors.black87,
-            fontWeight: FontWeight.bold,
-          ),
-          defaultTextStyle: TextStyle(
-            color: Colors.black87,
-          ),
         ),
         headerStyle: HeaderStyle(
           formatButtonVisible: false,
@@ -687,6 +712,7 @@ class _WorkListState extends State<WorkList> {
             speed: workout['speed'],
             username: workout['username'],
             createdAt: _formatDisplayDate(workout['created_at']),
+            pathData: workout['path_data'],
             onDelete: () => _showDeleteConfirmation(workout),
           ),
         );
@@ -697,9 +723,7 @@ class _WorkListState extends State<WorkList> {
   String _formatDisplayDate(String dateString) {
     try {
       DateTime dateTime = DateTime.parse(dateString);
-      // Convert to KST (UTC+9)
-      DateTime kstDateTime = dateTime.toUtc().add(Duration(hours: 9));
-      return DateFormat('yyyy-MM-dd HH:mm').format(kstDateTime);
+      return DateFormat('yyyy-MM-dd HH:mm').format(dateTime);
     } catch (e) {
       return dateString;
     }
@@ -770,6 +794,7 @@ class WorkListItem extends StatelessWidget {
   final String speed;
   final String username;
   final String createdAt;
+  final List<dynamic> pathData;
   final VoidCallback? onDelete;
 
   const WorkListItem({
@@ -778,80 +803,93 @@ class WorkListItem extends StatelessWidget {
     required this.speed,
     required this.username,
     required this.createdAt,
+    required this.pathData,
     this.onDelete,
     Key? key,
   }) : super(key: key);
 
+  void _showPathOnMap(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => WorkRoute(pathData: pathData),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 180,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
-            spreadRadius: 1,
-            blurRadius: 3,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // 헤더
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      username,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+    return GestureDetector(
+      onTap: () => _showPathOnMap(context),
+      child: Container(
+        height: 180,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.2),
+              spreadRadius: 1,
+              blurRadius: 3,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // 헤더
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        username,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    SizedBox(width: 10),
-                    Text(
-                      createdAt,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey,
+                      SizedBox(width: 10),
+                      Text(
+                        createdAt,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                GestureDetector(
-                  onTap: onDelete,
-                  child: Icon(
-                    Icons.delete,
-                    color: Colors.red,
-                    size: 22,
+                    ],
                   ),
-                ),
-              ],
+                  GestureDetector(
+                    onTap: onDelete,
+                    child: Icon(
+                      Icons.delete,
+                      color: Colors.red,
+                      size: 22,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          Divider(),
-          // 내용
-          Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildInfoColumn("소요 시간", walkTime),
-                _buildDivider(),
-                _buildInfoColumn("이동 거리", "$distance km"),
-                _buildDivider(),
-                _buildInfoColumn("속력", "$speed km/h"),
-              ],
+            Divider(),
+            // 내용
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildInfoColumn("소요 시간", walkTime),
+                  _buildDivider(),
+                  _buildInfoColumn("이동 거리", "$distance km"),
+                  _buildDivider(),
+                  _buildInfoColumn("속력", "$speed km/h"),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
