@@ -1,10 +1,12 @@
 import 'package:dangq/colors.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter/rendering.dart';
 
 class EditDogProfilePage extends StatefulWidget {
   final String username;
@@ -222,32 +224,52 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
     final bool? confirmed = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: AppColors.background,
+        return Dialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(5),
           ),
-          title: const Text('반려견 프로필 삭제'),
-          content: const Text(
-            '정말로 이 반려견 프로필을 삭제하시겠습니까?',
-            style: TextStyle(fontSize: 18), // 글씨 크기 키움
+          child: Container(
+            padding: EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(5),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '삭제 확인',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 25),
+                Text('이 반려견 프로필을 삭제하시겠습니까?'),
+                SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    TextButton(
+                      child: Text(
+                        '취소',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                      onPressed: () => Navigator.of(context).pop(false),
+                    ),
+                    SizedBox(width: 30),
+                    TextButton(
+                      child: Text(
+                        '삭제',
+                        style: TextStyle(color: Color(0xFF4DA374)),
+                      ),
+                      onPressed: () => Navigator.of(context).pop(true),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text(
-                '취소',
-                style: TextStyle(color: Colors.grey),
-              ),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text(
-                '삭제',
-                style: TextStyle(color: Colors.red),
-              ),
-            ),
-          ],
         );
       },
     );
@@ -286,16 +308,25 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.white,
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        toolbarHeight: MediaQuery.of(context).size.height * 0.05,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.black, size: 35),
-          onPressed: () => Navigator.pop(context),
+        toolbarHeight: MediaQuery.of(context).size.height * 0.07,
+        title: Text(
+          _isUpdating ? '반려견 프로필 수정' : '반려견 프로필 설정',
+          style: const TextStyle(
+            color: Colors.black,
+            fontSize: 17,
+            fontWeight: FontWeight.w500,
+          ),
         ),
-        backgroundColor: Colors.transparent,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        backgroundColor: Colors.white,
         elevation: 0,
+        systemOverlayStyle: SystemUiOverlayStyle.dark,
         actions: _isUpdating
             ? [
                 IconButton(
@@ -306,10 +337,10 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
             : null,
       ),
       body: SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(0, 0, 0, bottomInset + 100),
+        padding: EdgeInsets.fromLTRB(0, 0, 0, bottomInset + 20),
         child: Column(
           children: [
-            const SizedBox(height: 80),
+            const SizedBox(height: 40),
             GestureDetector(
               onTap: _pickImage,
               child: Container(
@@ -383,7 +414,7 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
                 ],
               ),
             ),
-            SizedBox(height: 200),
+            SizedBox(height: 100),
           ],
         ),
       ),
@@ -394,7 +425,7 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
         child: ElevatedButton(
           onPressed: _isUpdating ? _updateDogProfile : _saveDogProfile,
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.olivegreen,
+            backgroundColor: AppColors.lightgreen,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(5),
             ),

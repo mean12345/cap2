@@ -80,6 +80,7 @@ router.get('/:username', async (req, res) => {
               t.end_time,
               t.distance,
               IFNULL(t.speed, 0) AS speed,
+              t.path_data,
               t.created_at
             FROM tracking_data t
             JOIN users u ON t.user_id = u.user_id
@@ -102,13 +103,29 @@ router.get('/:username', async (req, res) => {
 
         const [trackingData] = await db.promise().query(query, params);
 
-        const formattedData = trackingData.map((data) => ({
-            ...data,
-            start_time: new Date(data.start_time).toLocaleString(),
-            end_time: new Date(data.end_time).toLocaleString(),
-            created_at: new Date(data.created_at).toLocaleString(),
-            speed: data.speed,
-        }));
+        const formattedData = trackingData.map((data) => {
+            let parsedPathData = [];
+            try {
+                // path_data가 문자열인 경우에만 파싱
+                if (typeof data.path_data === 'string') {
+                    parsedPathData = JSON.parse(data.path_data);
+                } else if (Array.isArray(data.path_data)) {
+                    // 이미 배열인 경우 그대로 사용
+                    parsedPathData = data.path_data;
+                }
+            } catch (e) {
+                console.error('path_data 파싱 오류:', e);
+            }
+
+            return {
+                ...data,
+                start_time: new Date(data.start_time).toLocaleString(),
+                end_time: new Date(data.end_time).toLocaleString(),
+                created_at: new Date(data.created_at).toLocaleString(),
+                speed: data.speed,
+                path_data: parsedPathData,
+            };
+        });
 
         res.status(200).json(formattedData);
     } catch (error) {

@@ -16,11 +16,21 @@ import 'package:dangq/work/work_self/draggable_dst/format_utils.dart';
 import 'package:dangq/work/check_place/selfplaceapp_popup.dart';
 import 'package:dangq/work/work_self/draggable_dst/speed_tracker.dart';
 //산책 페이지의 끌어 올리는 부분과 네이버 맵
+import 'dart:math';
 
 class WorkDST extends StatefulWidget {
   final String username;
   final int dogId;
-  const WorkDST({super.key, required this.username, required this.dogId});
+  final List<NLatLng>? forwardPath;
+  final List<NLatLng>? reversePath;
+
+  const WorkDST({
+    super.key,
+    required this.username,
+    required this.dogId,
+    this.forwardPath,
+    this.reversePath,
+  });
 
   @override
   State<WorkDST> createState() => _WorkDSTState();
@@ -39,12 +49,35 @@ class _WorkDSTState extends State<WorkDST> {
   double _sheetPosition = 0.08;
   bool _isRecording = false;
 
+  // 경로 표시를 위한 변수 추가
+  List<NLatLng>? _forwardPath;
+  List<NLatLng>? _reversePath;
+  NPolylineOverlay? _forwardRouteOverlay;
+  NPolylineOverlay? _reverseRouteOverlay;
+
+  bool _showMarkers = true; // 마커 표시 상태 변수 추가
+
   @override
   void initState() {
     super.initState();
     _speedTracker = SpeedTracker(
       onSpeedUpdate: (speed) => setState(() {}),
     );
+
+    // 경로 데이터 디버그
+    debugPrint('전달받은 경로 데이터:');
+    debugPrint('정방향 경로: ${widget.forwardPath?.length ?? 0}개 좌표');
+    debugPrint('역방향 경로: ${widget.reversePath?.length ?? 0}개 좌표');
+    if (widget.forwardPath != null) {
+      debugPrint(
+          '첫 좌표: ${widget.forwardPath!.first.latitude}, ${widget.forwardPath!.first.longitude}');
+      debugPrint(
+          '마지막 좌표: ${widget.forwardPath!.last.latitude}, ${widget.forwardPath!.last.longitude}');
+    }
+
+    // 전달받은 경로 저장
+    _forwardPath = widget.forwardPath;
+    _reversePath = widget.reversePath;
   }
 
   //마커 크기
@@ -116,6 +149,128 @@ class _WorkDSTState extends State<WorkDST> {
     _locationTracker?.saveTrackData();
   }
 
+  // 경로 표시 함수
+  Future<void> displayRoutes(
+      List<NLatLng> forwardPath, List<NLatLng> reversePath) async {
+    if (_mapController == null) return;
+
+    try {
+      // 기존 오버레이 삭제 전에 존재 여부 확인
+      if (_forwardRouteOverlay != null) {
+        try {
+          await _mapController.deleteOverlay(_forwardRouteOverlay!.info);
+        } catch (e) {
+          debugPrint('정방향 경로 삭제 실패: $e');
+        }
+      }
+      if (_reverseRouteOverlay != null) {
+        try {
+          await _mapController.deleteOverlay(_reverseRouteOverlay!.info);
+        } catch (e) {
+          debugPrint('역방향 경로 삭제 실패: $e');
+        }
+      }
+
+      // 시작점과 끝점 마커 추가
+      if (forwardPath.isNotEmpty) {
+        // 출발지 마커
+        final startMarker = NMarker(
+          id: 'route_start',
+          position: forwardPath.first,
+          iconTintColor: Colors.blue,
+          caption: NOverlayCaption(
+            text: '출발',
+            textSize: 14,
+            color: Colors.blue,
+            haloColor: Colors.white,
+          ),
+        );
+        await _mapController.addOverlay(startMarker);
+
+        // 도착지 마커
+        final endMarker = NMarker(
+          id: 'route_end',
+          position: forwardPath.last,
+          iconTintColor: Colors.red,
+          caption: NOverlayCaption(
+            text: '경유',
+            textSize: 14,
+            color: Colors.red,
+            haloColor: Colors.white,
+          ),
+        );
+        await _mapController.addOverlay(endMarker);
+      }
+
+      // 새로운 오버레이 생성 및 추가
+      _forwardRouteOverlay = NPolylineOverlay(
+        id: 'forward_route_${DateTime.now().millisecondsSinceEpoch}', // 고유 ID 사용
+        coords: forwardPath,
+        color: Colors.blue,
+        width: 5,
+      );
+
+      _reverseRouteOverlay = NPolylineOverlay(
+        id: 'reverse_route_${DateTime.now().millisecondsSinceEpoch}', // 고유 ID 사용
+        coords: reversePath,
+        color: Colors.blue,
+        width: 5,
+      );
+
+      // 오버레이 추가
+      await _mapController.addOverlay(_forwardRouteOverlay!);
+      await _mapController.addOverlay(_reverseRouteOverlay!);
+
+      setState(() {
+        _forwardPath = forwardPath;
+        _reversePath = reversePath;
+      });
+
+      // 경로가 모두 보이도록 카메라 위치 조정
+      final allPoints = [...forwardPath, ...reversePath];
+      if (allPoints.isNotEmpty) {
+        double minLat = allPoints.map((p) => p.latitude).reduce(min);
+        double maxLat = allPoints.map((p) => p.latitude).reduce(max);
+        double minLng = allPoints.map((p) => p.longitude).reduce(min);
+        double maxLng = allPoints.map((p) => p.longitude).reduce(max);
+
+        final bounds = NLatLngBounds(
+          southWest: NLatLng(minLat - 0.001, minLng - 0.001),
+          northEast: NLatLng(maxLat + 0.001, maxLng + 0.001),
+        );
+
+        await _mapController.updateCamera(
+          NCameraUpdate.fitBounds(
+            bounds,
+            padding: const EdgeInsets.all(50),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('경로 표시 중 오류 발생: $e');
+    }
+  }
+
+  // 마커 표시/숨김 토글 함수
+  void _toggleMarkers() async {
+    setState(() {
+      _showMarkers = !_showMarkers;
+    });
+
+    // 마커 상태 업데이트
+    await _mapController.clearOverlays();
+
+    // 마커가 켜져있을 때만 마커 표시
+    if (_showMarkers) {
+      await _markerManager?.loadMarkers();
+    }
+
+    // 경로는 항상 다시 표시
+    if (_forwardPath != null && _reversePath != null) {
+      await displayRoutes(_forwardPath!, _reversePath!);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final sheetPixelPosition =
@@ -133,6 +288,7 @@ class _WorkDSTState extends State<WorkDST> {
               username: widget.username,
               showDeleteConfirmationDialog: showDeleteConfirmationDialog,
             );
+
             _locationTracker = LocationTracker(
               mapController: controller,
               username: widget.username,
@@ -145,11 +301,31 @@ class _WorkDSTState extends State<WorkDST> {
               },
             );
 
-            // 지도 진입 시 마커 로드 순서 변경
-            await _markerManager?.loadMarkers(); // 먼저 마커 로드
-            await _mapController.clearOverlays(); // 기존 오버레이 제거
-            await _markerManager?.loadMarkers(); // 마커 다시 로드
+            // 경로가 있으면 표시
+            if (_forwardPath != null && _reversePath != null) {
+              await displayRoutes(_forwardPath!, _reversePath!);
+            }
+
+            // 마커 로드
+            await _markerManager?.loadMarkers();
+            await _mapController.clearOverlays();
+            await _markerManager?.loadMarkers();
+
+            // 경로 다시 표시 (마커가 경로를 가리지 않도록)
+            if (_forwardPath != null && _reversePath != null) {
+              await displayRoutes(_forwardPath!, _reversePath!);
+            }
+
             controller.setLocationTrackingMode(NLocationTrackingMode.follow);
+          },
+          onMapTapped: (NPoint point, NLatLng latLng) async {
+            try {
+              await _markerManager
+                  ?.markFavoritePlace(latLng); //markFavoritePlace
+              debugPrint('위험 마커 생성: ${latLng.latitude}, ${latLng.longitude}');
+            } catch (e) {
+              debugPrint('마커 생성 중 오류: $e');
+            }
           },
           options: NaverMapViewOptions(
             locationButtonEnable: false,
@@ -389,6 +565,20 @@ class _WorkDSTState extends State<WorkDST> {
                 ),
               );
             },
+          ),
+        ),
+
+        // 마커 ON/OFF 버튼 추가
+        Positioned(
+          top: 100,
+          right: 20,
+          child: FloatingActionButton.small(
+            onPressed: _toggleMarkers,
+            backgroundColor: _showMarkers ? AppColors.green : Colors.grey,
+            child: Icon(
+              Icons.place,
+              color: Colors.white,
+            ),
           ),
         ),
       ],
@@ -700,15 +890,16 @@ class DraggableSheetWidgets {
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         Expanded(
-            child: _textBox('시간', 's', speed, timerController, totalDistance)),
+          child: _textBox('시간', 's', speed, timerController, totalDistance),
+        ),
         _verticalLine(),
         Expanded(
-            child:
-                _textBox('이동거리', 'm', speed, timerController, totalDistance)),
+          child: _textBox('이동거리', 'm', speed, timerController, totalDistance),
+        ),
         _verticalLine(),
         Expanded(
-            child:
-                _textBox('속력', 'km/h', speed, timerController, totalDistance)),
+          child: _textBox('속력', 'km/h', speed, timerController, totalDistance),
+        ),
       ],
     );
   }
@@ -717,7 +908,14 @@ class DraggableSheetWidgets {
       ValueListenable<int> timerController, double totalDistance) {
     return Column(
       children: [
-        Text(label, style: const TextStyle(color: Colors.black)),
+        Text(
+          label,
+          style: const TextStyle(
+            color: Colors.black,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
         const SizedBox(height: 7),
         ValueListenableBuilder<int>(
           valueListenable: timerController,
@@ -731,11 +929,17 @@ class DraggableSheetWidgets {
                 displayValue = FormatUtils.formatTime(time);
                 break;
               case 'm':
-                displayValue = totalDistance.toStringAsFixed(1) + 'm';
+                displayValue = totalDistance.toStringAsFixed(1) + ' m';
                 break;
             }
-            return Text(displayValue,
-                style: const TextStyle(color: Colors.black));
+            return Text(
+              displayValue,
+              style: const TextStyle(
+                color: Colors.black,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            );
           },
         ),
       ],
@@ -1030,13 +1234,10 @@ class LocationTracker {
     if (durationSeconds == 0) return;
 
     final double averageSpeed = (totalDistance / durationSeconds) * 3.6;
-    final double roundedSpeed =
-        double.parse(averageSpeed.toStringAsFixed(2)); // 소수점 둘째 자리 반올림
+    final double roundedSpeed = double.parse(averageSpeed.toStringAsFixed(2));
 
     final String baseUrl = dotenv.get('BASE_URL');
-
     List<NLatLng> simplifiedPath = douglasPeucker(path, 10);
-
     List<Map<String, double>> pathJson = simplifiedPath
         .map((p) => {'latitude': p.latitude, 'longitude': p.longitude})
         .toList();
@@ -1056,12 +1257,14 @@ class LocationTracker {
         }),
       );
 
-      if (response.statusCode == 200) {
+      // 성공 응답 코드 범위 확장 (200, 201 모두 허용)
+      if (response.statusCode >= 200 && response.statusCode < 300) {
         debugPrint('트랙 데이터 저장 성공');
         debugPrint('총 거리: $totalDistance m');
         debugPrint('평균 속도: $roundedSpeed km/h');
       } else {
         debugPrint('트랙 데이터 저장 실패: ${response.statusCode}');
+        debugPrint('응답 내용: ${response.body}');
       }
     } catch (e) {
       debugPrint('트랙 데이터 저장 중 오류: $e');
