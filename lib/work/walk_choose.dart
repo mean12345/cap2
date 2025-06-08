@@ -1,5 +1,6 @@
 // lib/work/walk_choose.dart
 
+import 'dart:async';
 import 'dart:convert';
 import 'package:dangq/colors.dart';
 import 'package:dangq/work/work_self/work.dart';
@@ -10,6 +11,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:http/http.dart' as http;
 import 'package:dangq/pages/navigation/route_select_page.dart'; // route.dart import
+import 'package:geolocator/geolocator.dart'; // 상단에 추가
 
 class WalkChoose extends StatefulWidget {
   final String username;
@@ -43,12 +45,58 @@ class WalkChooseState extends State<WalkChoose> {
   NaverMapController? _mapController;
   List<NLatLng> _routeCoords = [];
 
+  // 현재 위치 관련 변수 추가
+  NLatLng? _currentLocation;
+  bool _locationLoading = true;
+
+  bool _isTracking = false;
+  Timer? _locationTimer;
+
   @override
   void initState() {
     super.initState();
     _selectedDogId = widget.dogId;
     _selectedDogName = widget.dogName;
     _fetchDogProfiles();
+    _getCurrentLocation(); // 현재 위치 가져오기
+  }
+
+  void _startLocationTracking() {
+    _locationTimer?.cancel();
+    _locationTimer =
+        Timer.periodic(const Duration(milliseconds: 1500), (timer) async {
+      // 1.5초 간격으로 변경
+      try {
+        Position position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.medium, // 정확도를 medium으로 설정
+          timeLimit: const Duration(seconds: 2), // 타임아웃 2초로 설정
+        );
+        if (mounted) {
+          setState(() {
+            _currentLocation = NLatLng(position.latitude, position.longitude);
+          });
+          if (_mapController != null) {
+            await _mapController!.updateCamera(
+              NCameraUpdate.withParams(
+                target: _currentLocation!,
+                zoom: 15,
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        debugPrint('위치 업데이트 오류: $e');
+      }
+    });
+    setState(() {
+      _isTracking = true;
+    });
+  }
+
+  @override
+  void dispose() {
+    _locationTimer?.cancel(); // 페이지 종료 시 타이머 취소
+    super.dispose();
   }
 
   void _updateSelectedDog(int dogId, String dogName, String imageUrl) {
@@ -117,14 +165,55 @@ class WalkChooseState extends State<WalkChoose> {
     }
   }
 
+  // 현재 위치 가져오는 함수
+  Future<void> _getCurrentLocation() async {
+    try {
+      // 먼저 마지막으로 알려진 위치를 가져옴 (즉시 응답)
+      Position? lastKnownPosition = await Geolocator.getLastKnownPosition();
+      if (lastKnownPosition != null) {
+        setState(() {
+          _currentLocation =
+              NLatLng(lastKnownPosition.latitude, lastKnownPosition.longitude);
+          _locationLoading = false;
+        });
+      }
+
+      // 권한 체크와 실제 위치 가져오기를 병렬로 처리
+      await Future.wait([
+        Geolocator.requestPermission(),
+        Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.medium, // 정확도를 medium으로 낮춤
+          timeLimit: const Duration(seconds: 3), // 타임아웃 설정
+        ).then((position) {
+          setState(() {
+            _currentLocation = NLatLng(position.latitude, position.longitude);
+            _locationLoading = false;
+          });
+        }).catchError((e) {
+          debugPrint('정확한 위치 가져오기 실패: $e');
+        }),
+      ]);
+    } catch (e) {
+      setState(() => _locationLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         toolbarHeight: MediaQuery.of(context).size.height * 0.05,
+        title: const Text(
+          '산책',
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 18,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black, size: 35),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () {
             Navigator.pop(context, {
               'dogId': _selectedDogId,
@@ -139,17 +228,28 @@ class WalkChooseState extends State<WalkChoose> {
       ),
       body: Stack(
         children: [
-          // ────────────────────────────────────────────────────
-          // (1) NaverMap 위젯: 컨트롤러 취득
-          // ────────────────────────────────────────────────────
           NaverMap(
-            onMapReady: (controller) {
+            onMapReady: (controller) async {
               _mapController = controller;
+              controller.setLocationTrackingMode(NLocationTrackingMode.follow);
+              _startLocationTracking();
+
+              if (_currentLocation != null) {
+                await controller.updateCamera(
+                  NCameraUpdate.withParams(
+                    target: _currentLocation!,
+                    zoom: 15,
+                  ),
+                );
+              }
             },
-            options: const NaverMapViewOptions(
-              locationButtonEnable: false,
+            options: NaverMapViewOptions(
+              locationButtonEnable: true,
+              indoorEnable: true,
+              consumeSymbolTapEvents: false,
               initialCameraPosition: NCameraPosition(
-                target: NLatLng(37.5666102, 126.9783881),
+                target:
+                    _currentLocation ?? const NLatLng(37.5666102, 126.9783881),
                 zoom: 15,
               ),
             ),

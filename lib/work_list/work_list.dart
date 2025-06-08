@@ -42,7 +42,7 @@ class _WorkListState extends State<WorkList> {
   // 월별 총계 데이터
   String _monthlyTotalWalkTime = '00:00:00';
   String _monthlyTotalDistance = '0.00';
-  String _monthlyTotalSpeed = '0';
+  String _monthlyTotalCount = '0';
 
   @override
   void initState() {
@@ -90,7 +90,7 @@ class _WorkListState extends State<WorkList> {
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
-        print('서버 응답 데이터: $data'); // 디버깅 추가
+        print('서버 응답 데이터: $data');
 
         setState(() {
           workItems = data.map((item) {
@@ -113,10 +113,7 @@ class _WorkListState extends State<WorkList> {
             double speedValue =
                 double.tryParse(item['speed']?.toString() ?? '0') ?? 0;
 
-            String createdAtStr = item['created_at'] ?? '';
-            DateTime createdAtDate = createdAtStr.isNotEmpty
-                ? (DateTime.tryParse(createdAtStr) ?? DateTime.now())
-                : DateTime.now();
+            DateTime recordDate = startTime ?? DateTime.now();
 
             try {
               var pathData = [];
@@ -126,7 +123,6 @@ class _WorkListState extends State<WorkList> {
                 } else {
                   pathData = item['path_data'];
                 }
-                print('가공된 path_data: $pathData'); // 디버깅 추가
               }
 
               return {
@@ -138,12 +134,12 @@ class _WorkListState extends State<WorkList> {
                 'distanceValue': distance / 1000,
                 'speed': speedValue.toStringAsFixed(2),
                 'speedValue': speedValue,
-                'created_at': createdAtDate.toIso8601String(),
-                'date': createdAtDate,
+                'created_at': recordDate.toIso8601String(),
+                'date': recordDate,
                 'path_data': pathData,
               };
             } catch (e) {
-              print('path_data 파싱 오류: $e');
+              print('데이터 처리 오류: $e');
               return {
                 'track_id': item['track_id']?.toString() ?? '',
                 'username': item['username']?.toString() ?? '',
@@ -153,14 +149,12 @@ class _WorkListState extends State<WorkList> {
                 'distanceValue': distance / 1000,
                 'speed': speedValue.toStringAsFixed(2),
                 'speedValue': speedValue,
-                'created_at': createdAtDate.toIso8601String(),
-                'date': createdAtDate,
+                'created_at': recordDate.toIso8601String(),
+                'date': recordDate,
                 'path_data': [],
               };
             }
           }).toList();
-
-          print('Fetched path data: ${workItems[0]['path_data']}'); // 디버깅용
 
           workoutsByDate = {};
           for (var item in workItems) {
@@ -203,25 +197,21 @@ class _WorkListState extends State<WorkList> {
 
       Duration totalDuration = Duration();
       double totalDistance = 0.0;
-      double totalSpeedSum = 0.0;
-      int speedCount = 0;
+      int walkCount = 0;
 
       for (var item in workItems) {
         DateTime itemDate = item['date'];
         if (itemDate.month == currentMonth && itemDate.year == currentYear) {
           totalDuration += item['walkTimeDuration'] as Duration;
           totalDistance += item['distanceValue'] as double;
-          totalSpeedSum += (item['speedValue'] as num).toDouble();
-          speedCount++;
+          walkCount++;
         }
       }
-
-      double averageSpeed = speedCount > 0 ? totalSpeedSum / speedCount : 0.0;
 
       setState(() {
         _monthlyTotalWalkTime = _formatDuration(totalDuration);
         _monthlyTotalDistance = totalDistance.toStringAsFixed(2);
-        _monthlyTotalSpeed = averageSpeed.toStringAsFixed(2);
+        _monthlyTotalCount = walkCount.toString();
       });
     } catch (e) {
       print('월별 총계 계산 오류: $e');
@@ -421,7 +411,7 @@ class _WorkListState extends State<WorkList> {
           ),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.of(context).pop(),
         ),
         backgroundColor: Colors.white,
@@ -561,8 +551,8 @@ class _WorkListState extends State<WorkList> {
               ),
               SizedBox(width: 8),
               _buildMonthlySummaryCard(
-                '평균 속력',
-                '${double.parse(_monthlyTotalSpeed).toStringAsFixed(2)} km/h',
+                '산책 횟수',
+                _monthlyTotalCount,
                 Icons.directions_walk,
               ),
             ],
@@ -599,7 +589,7 @@ class _WorkListState extends State<WorkList> {
             ),
             SizedBox(height: 8),
             Text(
-              value,
+              title == '산책 횟수' ? '${value}회' : value,
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
@@ -677,13 +667,6 @@ class _WorkListState extends State<WorkList> {
             color: Colors.black87,
             fontWeight: FontWeight.bold,
           ),
-          todayTextStyle: TextStyle(
-            color: Colors.black87,
-            fontWeight: FontWeight.bold,
-          ),
-          defaultTextStyle: TextStyle(
-            color: Colors.black87,
-          ),
         ),
         headerStyle: HeaderStyle(
           formatButtonVisible: false,
@@ -721,7 +704,7 @@ class _WorkListState extends State<WorkList> {
             speed: workout['speed'],
             username: workout['username'],
             createdAt: _formatDisplayDate(workout['created_at']),
-            pathData: workout['path_data'] ?? [], // 추가
+            pathData: workout['path_data'],
             onDelete: () => _showDeleteConfirmation(workout),
           ),
         );
@@ -732,9 +715,7 @@ class _WorkListState extends State<WorkList> {
   String _formatDisplayDate(String dateString) {
     try {
       DateTime dateTime = DateTime.parse(dateString);
-      // Convert to KST (UTC+9)
-      DateTime kstDateTime = dateTime.toUtc().add(Duration(hours: 9));
-      return DateFormat('yyyy-MM-dd HH:mm').format(kstDateTime);
+      return DateFormat('yyyy-MM-dd HH:mm').format(dateTime);
     } catch (e) {
       return dateString;
     }
@@ -805,7 +786,7 @@ class WorkListItem extends StatelessWidget {
   final String speed;
   final String username;
   final String createdAt;
-  final List<dynamic> pathData; // 추가
+  final List<dynamic> pathData;
   final VoidCallback? onDelete;
 
   const WorkListItem({
@@ -814,7 +795,7 @@ class WorkListItem extends StatelessWidget {
     required this.speed,
     required this.username,
     required this.createdAt,
-    required this.pathData, // 추가
+    required this.pathData,
     this.onDelete,
     Key? key,
   }) : super(key: key);

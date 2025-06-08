@@ -213,7 +213,7 @@ class _WorkDSTState extends State<WorkDST> {
       _reverseRouteOverlay = NPolylineOverlay(
         id: 'reverse_route_${DateTime.now().millisecondsSinceEpoch}', // 고유 ID 사용
         coords: reversePath,
-        color: Colors.blue,
+        color: Colors.red,
         width: 5,
       );
 
@@ -318,6 +318,7 @@ class _WorkDSTState extends State<WorkDST> {
 
             controller.setLocationTrackingMode(NLocationTrackingMode.follow);
           },
+          /* 지도 누르는 곳에 good 마커 생성*/
           onMapTapped: (NPoint point, NLatLng latLng) async {
             try {
               await _markerManager
