@@ -177,12 +177,13 @@ class _WorkDSTState extends State<WorkDST> {
         final startMarker = NMarker(
           id: 'route_start',
           position: forwardPath.first,
-          iconTintColor: Colors.blue,
-          caption: NOverlayCaption(
-            text: '출발',
+          icon: NOverlayImage.fromAssetImage(
+              'assets/images/startingpoint_pin.png'),
+          size: const Size(50, 60),
+          anchor: const NPoint(0.5, 1.0),
+          caption: const NOverlayCaption(
+            text: '출발지',
             textSize: 14,
-            color: Colors.blue,
-            haloColor: Colors.white,
           ),
         );
         await _mapController.addOverlay(startMarker);
@@ -191,12 +192,12 @@ class _WorkDSTState extends State<WorkDST> {
         final endMarker = NMarker(
           id: 'route_end',
           position: forwardPath.last,
-          iconTintColor: Colors.red,
-          caption: NOverlayCaption(
-            text: '경유',
+          icon: NOverlayImage.fromAssetImage('assets/images/waypoint_pin.png'),
+          size: const Size(50, 60),
+          anchor: const NPoint(0.5, 1.0),
+          caption: const NOverlayCaption(
+            text: '경유지',
             textSize: 14,
-            color: Colors.red,
-            haloColor: Colors.white,
           ),
         );
         await _mapController.addOverlay(endMarker);
@@ -206,14 +207,14 @@ class _WorkDSTState extends State<WorkDST> {
       _forwardRouteOverlay = NPolylineOverlay(
         id: 'forward_route_${DateTime.now().millisecondsSinceEpoch}', // 고유 ID 사용
         coords: forwardPath,
-        color: Colors.blue,
+        color: AppColors.green,
         width: 5,
       );
 
       _reverseRouteOverlay = NPolylineOverlay(
         id: 'reverse_route_${DateTime.now().millisecondsSinceEpoch}', // 고유 ID 사용
         coords: reversePath,
-        color: Colors.blue,
+        color: AppColors.green,
         width: 5,
       );
 
@@ -573,12 +574,15 @@ class _WorkDSTState extends State<WorkDST> {
         Positioned(
           top: 100,
           right: 20,
-          child: FloatingActionButton.small(
-            onPressed: _toggleMarkers,
-            backgroundColor: _showMarkers ? AppColors.green : Colors.grey,
-            child: Icon(
-              Icons.place,
-              color: Colors.white,
+          child: Transform.translate(
+            offset: const Offset(3, 0),
+            child: IconButton(
+              onPressed: _toggleMarkers,
+              icon: Icon(
+                Icons.place,
+                color: _showMarkers ? AppColors.green : Colors.grey,
+                size: 30,
+              ),
             ),
           ),
         ),
@@ -1053,7 +1057,6 @@ class DraggableSheetWidgets {
 }
 
 //실시간 위치추적, 거리계산, 경로저장 기능을 담당하는 클래스
-
 class LocationTracker {
   final NaverMapController mapController;
   final String username;
@@ -1213,6 +1216,8 @@ class LocationTracker {
             NPathOverlay pathOverlay = NPathOverlay(
               id: "test",
               coords: path,
+              color: AppColors.green,
+              width: 5,
             );
 
             mapController.addOverlay(pathOverlay);

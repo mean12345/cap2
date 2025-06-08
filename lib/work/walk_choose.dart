@@ -2,6 +2,8 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer';
+import 'dart:math';
 import 'package:dangq/colors.dart';
 import 'package:dangq/work/work_self/work.dart';
 import 'package:dangq/work/dog_list.dart';
@@ -10,7 +12,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:http/http.dart' as http;
-import 'package:dangq/pages/navigation/route_select_page.dart'; // route.dart import
+import 'package:dangq/work/navigation/route_select_page.dart'; // route.dart import
 import 'package:geolocator/geolocator.dart'; // 상단에 추가
 
 class WalkChoose extends StatefulWidget {
@@ -52,6 +54,10 @@ class WalkChooseState extends State<WalkChoose> {
   bool _isTracking = false;
   Timer? _locationTimer;
 
+  // 마커 관련 변수 추가
+  MarkerManager? _markerManager;
+  bool _showMarkers = true;
+
   @override
   void initState() {
     super.initState();
@@ -59,6 +65,15 @@ class WalkChooseState extends State<WalkChoose> {
     _selectedDogName = widget.dogName;
     _fetchDogProfiles();
     _getCurrentLocation(); // 현재 위치 가져오기
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // 페이지가 다시 포커스를 받을 때 마커 다시 로드
+    if (_mapController != null && _markerManager != null) {
+      _markerManager?.loadMarkers();
+    }
   }
 
   void _startLocationTracking() {
@@ -204,14 +219,6 @@ class WalkChooseState extends State<WalkChoose> {
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         toolbarHeight: MediaQuery.of(context).size.height * 0.05,
-        title: const Text(
-          '산책',
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 18,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
@@ -233,6 +240,16 @@ class WalkChooseState extends State<WalkChoose> {
               _mapController = controller;
               controller.setLocationTrackingMode(NLocationTrackingMode.follow);
               _startLocationTracking();
+
+              // 마커 매니저 초기화
+              _markerManager = MarkerManager(
+                mapController: controller,
+                username: widget.username,
+                showDeleteConfirmationDialog: (_, __) {}, // 빈 함수로 대체
+              );
+
+              // 마커 로드
+              await _markerManager?.loadMarkers();
 
               if (_currentLocation != null) {
                 await controller.updateCamera(
@@ -256,7 +273,7 @@ class WalkChooseState extends State<WalkChoose> {
           ),
 
           // ────────────────────────────────────────────────────
-          // (2) 하단 패널: “경로 추천 받기” / “산책하기” 버튼 및 프로필
+          // (2) 하단 패널: "경로 추천 받기" / "산책하기" 버튼 및 프로필
           // ────────────────────────────────────────────────────
           Positioned(
             bottom: 0,
@@ -270,7 +287,7 @@ class WalkChooseState extends State<WalkChoose> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     // ────────────────────────────────────────────
-                    // (2-1) “경로 추천 받기” 버튼
+                    // (2-1) "경로 추천 받기" 버튼
                     // ────────────────────────────────────────────
                     GestureDetector(
                       onTap: () async {
@@ -280,7 +297,8 @@ class WalkChooseState extends State<WalkChoose> {
                           MaterialPageRoute(
                             builder: (context) => RouteWithStopoverPage(
                               username: widget.username,
-                              dogId: widget.dogId,
+                              dogId: _selectedDogId,
+                              dogName: _selectedDogName,
                             ),
                           ),
                         );
@@ -290,21 +308,42 @@ class WalkChooseState extends State<WalkChoose> {
                           return;
                         }
 
+                        // 프로필 정보 업데이트
+                        if (routeResult is Map<String, dynamic> &&
+                            routeResult.containsKey('dogId') &&
+                            routeResult.containsKey('dogName') &&
+                            routeResult.containsKey('imageUrl')) {
+                          _updateSelectedDog(
+                            routeResult['dogId'],
+                            routeResult['dogName'],
+                            routeResult['imageUrl'],
+                          );
+                        }
+
                         // 경로가 생성된 경우에만 Work 화면으로 이동
                         if (routeResult is Map<String, dynamic> &&
                             routeResult.containsKey('forwardPath') &&
                             routeResult.containsKey('reversePath')) {
-                          Navigator.push(
+                          await Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (_) => Work(
                                 username: widget.username,
                                 dogId: _selectedDogId,
                                 dogName: _selectedDogName,
-                                // 필요 시: pathCoords: coords
+                                forwardPath: routeResult['forwardPath'],
+                                reversePath: routeResult['reversePath'],
                               ),
                             ),
-                          );
+                          ).then((_) {
+                            // Work 페이지에서 돌아올 때 마커 다시 로드
+                            if (_mapController != null &&
+                                _markerManager != null) {
+                              _mapController!.clearOverlays().then((_) {
+                                _markerManager?.loadMarkers();
+                              });
+                            }
+                          });
                         }
                       },
                       child: Container(
@@ -329,11 +368,11 @@ class WalkChooseState extends State<WalkChoose> {
                     ),
 
                     // ────────────────────────────────────────────
-                    // (2-2) “산책하기” 버튼: 기존 Work 화면으로 이동
+                    // (2-2) "산책하기" 버튼: 기존 Work 화면으로 이동
                     // ────────────────────────────────────────────
                     GestureDetector(
-                      onTap: () {
-                        Navigator.push(
+                      onTap: () async {
+                        await Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (context) => Work(
@@ -350,6 +389,14 @@ class WalkChooseState extends State<WalkChoose> {
                               result['dogName'],
                               result['imageUrl'],
                             );
+                          }
+
+                          // Work 페이지에서 돌아올 때 마커 다시 로드
+                          if (_mapController != null &&
+                              _markerManager != null) {
+                            _mapController!.clearOverlays().then((_) {
+                              _markerManager?.loadMarkers();
+                            });
                           }
                         });
                       },
@@ -461,22 +508,22 @@ class WalkChooseState extends State<WalkChoose> {
     // (1) 모든 오버레이(마커+폴리라인) 제거
     await _mapController!.clearOverlays();
 
-    // (2) 파란색 폴리라인 추가
+    // (2) 초록색 폴리라인 추가
     final polyline = NPolylineOverlay(
       id: 'recommended_route',
       coords: coords,
       width: 5,
-      color: Colors.blue,
+      color: AppColors.green,
     );
     await _mapController!.addOverlay(polyline);
 
     // (3) 출발지/도착지/경유지 마커 찍기
     if (coords.isNotEmpty) {
-      // 출발지 마커 (파란색)
+      // 출발지 마커 (초록색)
       final startMarker = NMarker(
         id: 'start_marker',
         position: coords.first,
-        iconTintColor: Colors.blue,
+        iconTintColor: Colors.green,
       );
       await _mapController!.addOverlay(startMarker);
     }
@@ -502,5 +549,121 @@ class WalkChooseState extends State<WalkChoose> {
     setState(() {
       _routeCoords = coords;
     });
+  }
+}
+
+// 마커 관리 클래스
+class MarkerManager {
+  final NaverMapController mapController;
+  final String username;
+  final Function(String, String) showDeleteConfirmationDialog;
+
+  MarkerManager({
+    required this.mapController,
+    required this.username,
+    required this.showDeleteConfirmationDialog,
+  });
+
+  Future<void> loadMarkers() async {
+    try {
+      debugPrint('마커 로드 시작');
+
+      if (mapController == null) {
+        debugPrint('MapController가 초기화되지 않았습니다.');
+        return;
+      }
+
+      List<Map<String, dynamic>> markers = await fetchMarkersFromDB();
+      debugPrint('DB에서 마커 불러오기 완료: ${markers.length}개 마커');
+
+      if (markers.isEmpty) {
+        debugPrint('로드할 마커가 없습니다.');
+        return;
+      }
+
+      List<NMarker> markersToAdd = [];
+
+      for (var marker in markers) {
+        try {
+          NLatLng position = NLatLng(
+            double.parse(marker['latitude'].toString()),
+            double.parse(marker['longitude'].toString()),
+          );
+
+          String markerType = marker['markerType'].toString();
+          String markerName = marker['markerName'].toString();
+
+          String imageAsset = markerType == 'bad'
+              ? 'assets/images/dangerous_pin.png'
+              : 'assets/images/good_pin.png';
+
+          String markerText = markerType == 'bad' ? '위험한 곳' : '좋아하는 곳';
+          Color textColor = markerType == 'bad'
+              ? const Color(0xFFFF0000)
+              : const Color(0xFF00FF00);
+
+          final nMarker = NMarker(
+            id: markerName,
+            position: position,
+            icon: NOverlayImage.fromAssetImage(imageAsset),
+            size: Size(50.0, 60.0),
+            caption: NOverlayCaption(
+              text: markerText,
+              color: textColor,
+            ),
+          );
+
+          markersToAdd.add(nMarker);
+          debugPrint('마커 준비 완료: $markerName (타입: $markerType)');
+        } catch (e) {
+          debugPrint('마커 생성 중 오류 발생: $e');
+          continue;
+        }
+      }
+
+      // 모든 마커를 한 번에 추가
+      for (var marker in markersToAdd) {
+        try {
+          await mapController.addOverlay(marker);
+          debugPrint('마커 추가 완료: ${marker.info.id}');
+        } catch (e) {
+          debugPrint('마커 추가 중 오류 발생: $e');
+        }
+      }
+
+      debugPrint('총 ${markersToAdd.length}개의 마커 로드 완료');
+    } catch (e) {
+      debugPrint('마커 로드 중 오류 발생: $e');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchMarkersFromDB() async {
+    final String baseUrl = dotenv.get('BASE_URL');
+
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/markers/$username'));
+
+      if (response.statusCode == 200) {
+        Map<String, dynamic> data = jsonDecode(response.body);
+        debugPrint('API에서 받은 마커 데이터: $data');
+
+        List<dynamic> markersData = data['markers'];
+
+        return markersData
+            .map((item) => {
+                  'latitude': item['latitude'],
+                  'longitude': item['longitude'],
+                  'markerType': item['marker_type'],
+                  'markerName': item['marker_name'],
+                })
+            .toList();
+      } else {
+        debugPrint('Failed to fetch markers: ${response.body}');
+        return [];
+      }
+    } catch (e) {
+      debugPrint('Error fetching markers: $e');
+      return [];
+    }
   }
 }

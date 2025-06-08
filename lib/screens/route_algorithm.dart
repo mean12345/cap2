@@ -78,7 +78,8 @@ class _RouteWithStopoverPageState extends State<RouteWithStopoverPage> {
 
   // 알고리즘 관련 상수
   static const double DETECTION_RADIUS = 1000.0; // 1km in meters
-  static const double WAYPOINT_REACH_THRESHOLD = 50.0; // 50m to consider waypoint reached
+  static const double WAYPOINT_REACH_THRESHOLD =
+      50.0; // 50m to consider waypoint reached
   static const double ROUTE_DEVIATION_THRESHOLD = 100.0; // 100m from route
 
   @override
@@ -162,7 +163,8 @@ class _RouteWithStopoverPageState extends State<RouteWithStopoverPage> {
       await _mapController!.addOverlay(_endMarker!);
     }
 
-    if (_currentPositionMarker != null && _walkingState != WalkingState.planning) {
+    if (_currentPositionMarker != null &&
+        _walkingState != WalkingState.planning) {
       await _mapController!.addOverlay(_currentPositionMarker!);
     }
 
@@ -180,23 +182,27 @@ class _RouteWithStopoverPageState extends State<RouteWithStopoverPage> {
   }
 
   void _addSmartMarker(NLatLng latLng, MarkerType type) {
-    final id = '${type.name}_${_smartMarkers.where((m) => m.type == type).length}';
-    
+    final id =
+        '${type.name}_${_smartMarkers.where((m) => m.type == type).length}';
+
     Color color;
     String caption;
-    
+
     switch (type) {
       case MarkerType.stopover:
         color = Colors.yellow;
-        caption = '경유지 ${_smartMarkers.where((m) => m.type == MarkerType.stopover).length + 1}';
+        caption =
+            '경유지 ${_smartMarkers.where((m) => m.type == MarkerType.stopover).length + 1}';
         break;
       case MarkerType.good:
         color = Colors.lightGreen;
-        caption = 'Good ${_smartMarkers.where((m) => m.type == MarkerType.good).length + 1}';
+        caption =
+            'Good ${_smartMarkers.where((m) => m.type == MarkerType.good).length + 1}';
         break;
       case MarkerType.bad:
         color = Colors.red;
-        caption = 'Bad ${_smartMarkers.where((m) => m.type == MarkerType.bad).length + 1}';
+        caption =
+            'Bad ${_smartMarkers.where((m) => m.type == MarkerType.bad).length + 1}';
         break;
     }
 
@@ -232,24 +238,26 @@ class _RouteWithStopoverPageState extends State<RouteWithStopoverPage> {
   }
 
   // 경로상의 점들과 마커들의 근접성 확인
-  List<SmartMarker> _findNearbyMarkers(List<NLatLng> routePoints, MarkerType type) {
+  List<SmartMarker> _findNearbyMarkers(
+      List<NLatLng> routePoints, MarkerType type) {
     List<SmartMarker> nearbyMarkers = [];
-    
+
     for (final marker in _smartMarkers.where((m) => m.type == type)) {
       bool isNearRoute = false;
-      
+
       for (final routePoint in routePoints) {
-        if (_calculateDistance(routePoint, marker.position) <= DETECTION_RADIUS) {
+        if (_calculateDistance(routePoint, marker.position) <=
+            DETECTION_RADIUS) {
           isNearRoute = true;
           break;
         }
       }
-      
+
       if (isNearRoute) {
         nearbyMarkers.add(marker);
       }
     }
-    
+
     return nearbyMarkers;
   }
 
@@ -258,32 +266,35 @@ class _RouteWithStopoverPageState extends State<RouteWithStopoverPage> {
     if (_start == null || _end == null) return [];
 
     List<NLatLng> waypoints = [_start!];
-    
+
     // 기존 경유지 추가
     waypoints.addAll(_smartMarkers
         .where((m) => m.type == MarkerType.stopover)
         .map((m) => m.position));
 
     // Good 마커들 중에서 경로에 가까운 것들을 경유지로 추가
-    final goodMarkers = _smartMarkers.where((m) => m.type == MarkerType.good).toList();
-    
+    final goodMarkers =
+        _smartMarkers.where((m) => m.type == MarkerType.good).toList();
+
     // 간단한 그리디 알고리즘으로 가까운 Good 마커들을 순서대로 추가
     List<NLatLng> currentPath = List.from(waypoints);
     currentPath.add(_end!);
-    
+
     for (final goodMarker in goodMarkers) {
       // 현재 경로에서 이 Good 마커까지의 최단거리 확인
       double minDistance = double.infinity;
       int insertIndex = -1;
-      
+
       for (int i = 0; i < currentPath.length - 1; i++) {
-        double distanceToMarker = _calculateDistance(currentPath[i], goodMarker.position);
-        if (distanceToMarker <= DETECTION_RADIUS && distanceToMarker < minDistance) {
+        double distanceToMarker =
+            _calculateDistance(currentPath[i], goodMarker.position);
+        if (distanceToMarker <= DETECTION_RADIUS &&
+            distanceToMarker < minDistance) {
           minDistance = distanceToMarker;
           insertIndex = i + 1;
         }
       }
-      
+
       if (insertIndex != -1) {
         currentPath.insert(insertIndex, goodMarker.position);
       }
@@ -295,44 +306,43 @@ class _RouteWithStopoverPageState extends State<RouteWithStopoverPage> {
   // Bad 마커 우회를 위한 경로 조정
   List<NLatLng> _adjustRouteForBadMarkers(List<NLatLng> originalRoute) {
     List<NLatLng> adjustedRoute = List.from(originalRoute);
-    final badMarkers = _smartMarkers.where((m) => m.type == MarkerType.bad).toList();
-    
+    final badMarkers =
+        _smartMarkers.where((m) => m.type == MarkerType.bad).toList();
+
     for (final badMarker in badMarkers) {
       List<NLatLng> newRoute = [];
-      
+
       for (int i = 0; i < adjustedRoute.length; i++) {
         newRoute.add(adjustedRoute[i]);
-        
+
         // 다음 점이 있고, 현재 점에서 다음 점으로의 경로가 Bad 마커와 너무 가까운 경우
         if (i < adjustedRoute.length - 1) {
           NLatLng current = adjustedRoute[i];
           NLatLng next = adjustedRoute[i + 1];
-          
+
           // 중점 계산
           NLatLng midPoint = NLatLng(
             (current.latitude + next.latitude) / 2,
             (current.longitude + next.longitude) / 2,
           );
-          
-          if (_calculateDistance(midPoint, badMarker.position) <= DETECTION_RADIUS) {
+
+          if (_calculateDistance(midPoint, badMarker.position) <=
+              DETECTION_RADIUS) {
             // 우회 지점 생성 (Bad 마커로부터 수직으로 DETECTION_RADIUS * 1.5 만큼 떨어진 지점)
             double bearing = _calculateBearing(current, next);
             double perpendicularBearing = bearing + 90; // 수직 방향
-            
+
             NLatLng detourPoint = _calculateDestination(
-              midPoint, 
-              perpendicularBearing, 
-              DETECTION_RADIUS * 1.5
-            );
-            
+                midPoint, perpendicularBearing, DETECTION_RADIUS * 1.5);
+
             newRoute.add(detourPoint);
           }
         }
       }
-      
+
       adjustedRoute = newRoute;
     }
-    
+
     return adjustedRoute;
   }
 
@@ -341,31 +351,34 @@ class _RouteWithStopoverPageState extends State<RouteWithStopoverPage> {
     double lat1 = start.latitude * math.pi / 180;
     double lat2 = end.latitude * math.pi / 180;
     double deltaLng = (end.longitude - start.longitude) * math.pi / 180;
-    
+
     double y = math.sin(deltaLng) * math.cos(lat2);
-    double x = math.cos(lat1) * math.sin(lat2) - 
-               math.sin(lat1) * math.cos(lat2) * math.cos(deltaLng);
-    
+    double x = math.cos(lat1) * math.sin(lat2) -
+        math.sin(lat1) * math.cos(lat2) * math.cos(deltaLng);
+
     return math.atan2(y, x) * 180 / math.pi;
   }
 
   // 특정 거리와 방향으로 새로운 좌표 계산
-  NLatLng _calculateDestination(NLatLng start, double bearing, double distance) {
+  NLatLng _calculateDestination(
+      NLatLng start, double bearing, double distance) {
     double lat1 = start.latitude * math.pi / 180;
     double lng1 = start.longitude * math.pi / 180;
     double bearingRad = bearing * math.pi / 180;
     double earthRadius = 6371000; // Earth radius in meters
-    
-    double lat2 = math.asin(
-      math.sin(lat1) * math.cos(distance / earthRadius) +
-      math.cos(lat1) * math.sin(distance / earthRadius) * math.cos(bearingRad)
-    );
-    
-    double lng2 = lng1 + math.atan2(
-      math.sin(bearingRad) * math.sin(distance / earthRadius) * math.cos(lat1),
-      math.cos(distance / earthRadius) - math.sin(lat1) * math.sin(lat2)
-    );
-    
+
+    double lat2 = math.asin(math.sin(lat1) * math.cos(distance / earthRadius) +
+        math.cos(lat1) *
+            math.sin(distance / earthRadius) *
+            math.cos(bearingRad));
+
+    double lng2 = lng1 +
+        math.atan2(
+            math.sin(bearingRad) *
+                math.sin(distance / earthRadius) *
+                math.cos(lat1),
+            math.cos(distance / earthRadius) - math.sin(lat1) * math.sin(lat2));
+
     return NLatLng(lat2 * 180 / math.pi, lng2 * 180 / math.pi);
   }
 
@@ -446,12 +459,13 @@ class _RouteWithStopoverPageState extends State<RouteWithStopoverPage> {
     try {
       // 스마트 경로 생성
       List<NLatLng> smartRoute = _generateSmartRoute();
-      
+
       // Bad 마커 우회 경로 적용
       smartRoute = _adjustRouteForBadMarkers(smartRoute);
 
       // 서버에 요청할 데이터 준비
-      final stopovers = smartRoute.sublist(1, smartRoute.length - 1).map((point) {
+      final stopovers =
+          smartRoute.sublist(1, smartRoute.length - 1).map((point) {
         return {'lat': point.latitude, 'lng': point.longitude};
       }).toList();
 
@@ -473,7 +487,7 @@ class _RouteWithStopoverPageState extends State<RouteWithStopoverPage> {
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
         final List<dynamic> pathData = decoded['path'];
-        
+
         final List<NLatLng> routePoints = pathData.map((point) {
           return NLatLng(point['lat'].toDouble(), point['lng'].toDouble());
         }).toList();
@@ -481,16 +495,16 @@ class _RouteWithStopoverPageState extends State<RouteWithStopoverPage> {
         await _displayRoute(routePoints);
 
         // 분석 결과 표시
-        final goodCount = _smartMarkers.where((m) => m.type == MarkerType.good).length;
-        final badCount = _smartMarkers.where((m) => m.type == MarkerType.bad).length;
+        final goodCount =
+            _smartMarkers.where((m) => m.type == MarkerType.good).length;
+        final badCount =
+            _smartMarkers.where((m) => m.type == MarkerType.bad).length;
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              '스마트 경로 생성 완료!\n'
-              'Good 마커: ${goodCount}개, Bad 마커: ${badCount}개 고려됨\n'
-              '이제 산책을 시작할 수 있습니다!'
-            ),
+            content: Text('스마트 경로 생성 완료!\n'
+                'Good 마커: ${goodCount}개, Bad 마커: ${badCount}개 고려됨\n'
+                '이제 산책을 시작할 수 있습니다!'),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 3),
           ),
@@ -555,17 +569,17 @@ class _RouteWithStopoverPageState extends State<RouteWithStopoverPage> {
   // 위치 업데이트 처리
   void _onPositionUpdate(Position position) {
     final newPosition = NLatLng(position.latitude, position.longitude);
-    
+
     setState(() {
       if (_currentPosition != null) {
         // 이동 거리 계산
         double distance = _calculateDistance(_currentPosition!, newPosition);
         _totalDistance += distance;
       }
-      
+
       _currentPosition = newPosition;
       _visitedPositions.add(newPosition);
-      
+
       // 현재 위치 마커 업데이트
       _currentPositionMarker = NMarker(
         id: 'current_position',
@@ -577,16 +591,16 @@ class _RouteWithStopoverPageState extends State<RouteWithStopoverPage> {
 
     // 경로 이탈 확인
     _checkRouteDeviation(newPosition);
-    
+
     // 다음 경유지 도달 확인
     _checkWaypointReached(newPosition);
-    
+
     // 산책 경로 표시 업데이트
     _updateWalkingTrack();
-    
+
     // 마커 업데이트
     _updateMarkersOnMap();
-    
+
     // 카메라를 현재 위치로 이동
     if (_mapController != null) {
       _mapController!.updateCamera(
@@ -598,7 +612,7 @@ class _RouteWithStopoverPageState extends State<RouteWithStopoverPage> {
   // 경로 이탈 확인
   void _checkRouteDeviation(NLatLng currentPos) {
     if (_routePath.isEmpty) return;
-    
+
     double minDistance = double.infinity;
     for (final routePoint in _routePath) {
       double distance = _calculateDistance(currentPos, routePoint);
@@ -606,7 +620,7 @@ class _RouteWithStopoverPageState extends State<RouteWithStopoverPage> {
         minDistance = distance;
       }
     }
-    
+
     if (minDistance > ROUTE_DEVIATION_THRESHOLD) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -621,15 +635,15 @@ class _RouteWithStopoverPageState extends State<RouteWithStopoverPage> {
   // 경유지 도달 확인
   void _checkWaypointReached(NLatLng currentPos) {
     if (_currentWaypointIndex >= _routePath.length) return;
-    
+
     NLatLng nextWaypoint = _routePath[_currentWaypointIndex];
     double distance = _calculateDistance(currentPos, nextWaypoint);
-    
+
     if (distance <= WAYPOINT_REACH_THRESHOLD) {
       setState(() {
         _currentWaypointIndex++;
       });
-      
+
       if (_currentWaypointIndex >= _routePath.length) {
         // 모든 경유지 완료
         _completeWalking();
@@ -648,12 +662,12 @@ class _RouteWithStopoverPageState extends State<RouteWithStopoverPage> {
   // 산책 경로 표시 업데이트
   Future<void> _updateWalkingTrack() async {
     if (_mapController == null || _visitedPositions.length < 2) return;
-    
+
     // 기존 트랙 삭제
     if (_walkingTrackPolyline != null) {
       await _mapController!.deleteOverlay(_walkingTrackPolyline!.info);
     }
-    
+
     // 새 트랙 생성
     _walkingTrackPolyline = NPolylineOverlay(
       id: 'walking_track',
@@ -661,7 +675,7 @@ class _RouteWithStopoverPageState extends State<RouteWithStopoverPage> {
       color: Colors.red,
       width: 3,
     );
-    
+
     await _mapController!.addOverlay(_walkingTrackPolyline!);
   }
 
@@ -684,10 +698,10 @@ class _RouteWithStopoverPageState extends State<RouteWithStopoverPage> {
       _walkingState = WalkingState.completed;
       _walkingEndTime = DateTime.now();
     });
-    
+
     _positionSubscription?.cancel();
     _walkingTimer?.cancel();
-    
+
     _showWalkingCompletedDialog();
   }
 
@@ -695,7 +709,7 @@ class _RouteWithStopoverPageState extends State<RouteWithStopoverPage> {
   void _stopWalking() {
     _positionSubscription?.cancel();
     _walkingTimer?.cancel();
-    
+
     setState(() {
       _walkingState = WalkingState.planning;
       _walkingStartTime = null;
@@ -705,13 +719,13 @@ class _RouteWithStopoverPageState extends State<RouteWithStopoverPage> {
       _visitedPositions.clear();
       _walkingDuration = Duration.zero;
     });
-    
+
     // 산책 트랙 삭제
     if (_mapController != null && _walkingTrackPolyline != null) {
       _mapController!.deleteOverlay(_walkingTrackPolyline!.info);
       _walkingTrackPolyline = null;
     }
-    
+
     _updateMarkersOnMap();
   }
 
@@ -724,7 +738,7 @@ class _RouteWithStopoverPageState extends State<RouteWithStopoverPage> {
       visitedWaypoints: _currentWaypointIndex,
       totalWaypoints: _routePath.length,
     );
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -770,7 +784,7 @@ class _RouteWithStopoverPageState extends State<RouteWithStopoverPage> {
 
   Widget _buildWalkingControlPanel() {
     if (_walkingState == WalkingState.planning) return Container();
-    
+
     return Positioned(
       bottom: 20,
       left: 20,
@@ -796,28 +810,34 @@ class _RouteWithStopoverPageState extends State<RouteWithStopoverPage> {
                 children: [
                   Column(
                     children: [
-                      const Text('시간', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                      const Text('시간',
+                          style: TextStyle(color: Colors.grey, fontSize: 12)),
                       Text(
                         _formatDuration(_walkingDuration),
-                        style: const TextStyle(color: Colors.white, fontSize: 14),
+                        style:
+                            const TextStyle(color: Colors.white, fontSize: 14),
                       ),
                     ],
                   ),
                   Column(
                     children: [
-                      const Text('거리', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                      const Text('거리',
+                          style: TextStyle(color: Colors.grey, fontSize: 12)),
                       Text(
                         '${(_totalDistance / 1000).toStringAsFixed(2)} km',
-                        style: const TextStyle(color: Colors.white, fontSize: 14),
+                        style:
+                            const TextStyle(color: Colors.white, fontSize: 14),
                       ),
                     ],
                   ),
                   Column(
                     children: [
-                      const Text('걸음 수', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                      const Text('걸음 수',
+                          style: TextStyle(color: Colors.grey, fontSize: 12)),
                       Text(
                         '${(_totalDistance / 0.762).round()} 걸음',
-                        style: const TextStyle(color: Colors.white, fontSize: 14),
+                        style:
+                            const TextStyle(color: Colors.white, fontSize: 14),
                       ),
                     ],
                   ),
@@ -828,16 +848,21 @@ class _RouteWithStopoverPageState extends State<RouteWithStopoverPage> {
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   ElevatedButton.icon(
-                    icon: Icon(_walkingState == WalkingState.paused ? Icons.play_arrow : Icons.pause),
-                    label: Text(_walkingState == WalkingState.paused ? '재개' : '일시정지'),
+                    icon: Icon(_walkingState == WalkingState.paused
+                        ? Icons.play_arrow
+                        : Icons.pause),
+                    label: Text(
+                        _walkingState == WalkingState.paused ? '재개' : '일시정지'),
                     onPressed: _toggleWalkingPause,
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blueAccent),
                   ),
                   ElevatedButton.icon(
                     icon: const Icon(Icons.stop),
                     label: const Text('종료'),
                     onPressed: _stopWalking,
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.redAccent),
                   ),
                 ],
               ),
@@ -865,7 +890,8 @@ class _RouteWithStopoverPageState extends State<RouteWithStopoverPage> {
         children: [
           NaverMap(
             options: NaverMapViewOptions(
-              initialCameraPosition: NCameraPosition(target: _start ?? NLatLng(37.5665, 126.9780), zoom: 15),
+              initialCameraPosition: NCameraPosition(
+                  target: _start ?? NLatLng(37.5665, 126.9780), zoom: 15),
               locationButtonEnable: true,
             ),
             onMapReady: (controller) {

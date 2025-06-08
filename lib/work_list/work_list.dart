@@ -659,6 +659,10 @@ class _WorkListState extends State<WorkList> {
             color: AppColors.green.withOpacity(0.1),
             shape: BoxShape.circle,
           ),
+          todayTextStyle: TextStyle(
+            color: Colors.black87,
+            fontWeight: FontWeight.bold,
+          ),
           selectedDecoration: BoxDecoration(
             border: Border.all(color: AppColors.green, width: 2),
             shape: BoxShape.circle,
@@ -705,6 +709,8 @@ class _WorkListState extends State<WorkList> {
             username: workout['username'],
             createdAt: _formatDisplayDate(workout['created_at']),
             pathData: workout['path_data'],
+            dogName: _selectedDogName,
+            dogImageUrl: _selectedDogImageUrl,
             onDelete: () => _showDeleteConfirmation(workout),
           ),
         );
@@ -787,6 +793,8 @@ class WorkListItem extends StatelessWidget {
   final String username;
   final String createdAt;
   final List<dynamic> pathData;
+  final String dogName;
+  final String dogImageUrl;
   final VoidCallback? onDelete;
 
   const WorkListItem({
@@ -796,6 +804,8 @@ class WorkListItem extends StatelessWidget {
     required this.username,
     required this.createdAt,
     required this.pathData,
+    required this.dogName,
+    required this.dogImageUrl,
     this.onDelete,
     Key? key,
   }) : super(key: key);
@@ -804,7 +814,13 @@ class WorkListItem extends StatelessWidget {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => WorkRoute(pathData: pathData),
+        builder: (context) => WorkRoute(
+          pathData: pathData,
+          username: username,
+          createdAt: createdAt,
+          dogName: dogName,
+          dogImageUrl: dogImageUrl,
+        ),
       ),
     );
   }

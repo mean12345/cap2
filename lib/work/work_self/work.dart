@@ -3,19 +3,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart'; // dotenv 쓰려면
-
 import 'package:dangq/work/work_self/draggable_dst/draggable_dst.dart';
+import 'package:flutter_naver_map/flutter_naver_map.dart';
 
 class Work extends StatefulWidget {
   final String username;
   final int dogId;
   final String dogName;
+  final List<NLatLng>? forwardPath;
+  final List<NLatLng>? reversePath;
 
   const Work({
     super.key,
     required this.username,
     required this.dogId,
     required this.dogName,
+    this.forwardPath,
+    this.reversePath,
   });
 
   @override
@@ -93,62 +97,65 @@ class _WorkState extends State<Work> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      home: Scaffold(
-        extendBodyBehindAppBar: true,
-        appBar: PreferredSize(
-          preferredSize:
-              Size.fromHeight(MediaQuery.of(context).size.height * 0.05),
-          child: Transform.translate(
-            offset: const Offset(0, 10),
-            child: AppBar(
-              title: const Text(
-                '산책',
-                style: TextStyle(
-                  color: Colors.black,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-              ),
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              systemOverlayStyle: SystemUiOverlayStyle.dark,
+    return Scaffold(
+      extendBodyBehindAppBar: true,
+      appBar: PreferredSize(
+        preferredSize:
+            Size.fromHeight(MediaQuery.of(context).size.height * 0.05),
+        child: Transform.translate(
+          offset: const Offset(0, 6),
+          child: AppBar(
+            systemOverlayStyle: const SystemUiOverlayStyle(
+              statusBarColor: Colors.transparent,
+              statusBarIconBrightness: Brightness.dark,
+            ),
+            backgroundColor: Colors.transparent,
+            foregroundColor: Colors.black,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () {
+                Navigator.pop(context, {
+                  'dogId': widget.dogId,
+                  'dogName': widget.dogName,
+                  'imageUrl': profileImage,
+                });
+              },
             ),
           ),
         ),
-        body: Stack(
-          children: [
-            WorkDST(username: widget.username, dogId: widget.dogId),
-            Positioned(
-              top: MediaQuery.of(context).size.height * 0.05,
-              right: 16,
-              child: Container(
-                width: 50,
-                height: 50,
-                child: _isLoading
-                    ? const CircularProgressIndicator()
-                    : profileImage != null
-                        ? ClipOval(
-                            child: Image.network(
-                              profileImage!,
-                              fit: BoxFit.cover,
-                            ),
-                          )
-                        : const Icon(
-                            Icons.person,
-                            color: Colors.white,
-                            size: 30,
+      ),
+      body: Stack(
+        children: [
+          WorkDST(
+            username: widget.username,
+            dogId: widget.dogId,
+            forwardPath: widget.forwardPath,
+            reversePath: widget.reversePath,
+          ),
+          Positioned(
+            top: MediaQuery.of(context).size.height * 0.05,
+            right: 16,
+            child: Container(
+              width: 50,
+              height: 50,
+              child: _isLoading
+                  ? const CircularProgressIndicator()
+                  : profileImage != null
+                      ? ClipOval(
+                          child: Image.network(
+                            profileImage!,
+                            fit: BoxFit.cover,
                           ),
-              ),
+                        )
+                      : const Icon(
+                          Icons.person,
+                          color: Colors.white,
+                          size: 30,
+                        ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
