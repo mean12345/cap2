@@ -75,8 +75,7 @@ class MarkerManager {
           final nMarker = NMarker(
             id: markerName,
             position: position,
-            icon: NOverlayImage.fromAssetImage(imageAsset),
-            size: Size(50.0, 60.0),
+            iconTintColor: markerType == 'bad' ? Colors.red : Colors.green,
             caption: NOverlayCaption(
               text: markerText,
               color: textColor,

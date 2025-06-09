@@ -1,0 +1,1 @@
+C:\DangQ_server\Dangq\build\app\intermediates\cxx\RelWithDebInfo\4p5u131h\obj\x86_64

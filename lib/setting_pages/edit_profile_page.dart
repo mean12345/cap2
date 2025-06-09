@@ -161,98 +161,120 @@ class _EditProfilePageState extends State<EditProfilePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        title: const Text('프로필 수정'),
-        backgroundColor: AppColors.background,
+        scrolledUnderElevation: 0,
+        toolbarHeight: MediaQuery.of(context).size.height * 0.07,
+        title: const Text(
+          '프로필 설정',
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 17,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
+        backgroundColor: AppColors.background,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(35),
-        child: Column(
-          children: [
-            SizedBox(
-                height: MediaQuery.of(context).size.height *
-                    0.05), // 화면 높이의 10% 만큼 여백 추가
-            GestureDetector(
-              onTap: _pickImage,
-              child: CircleAvatar(
-                radius: 90,
-                backgroundColor: Colors.grey[200],
-                backgroundImage: _imageFile != null
-                    ? FileImage(_imageFile!)
-                    : (_profileImageUrl != null && _profileImageUrl!.isNotEmpty
-                        ? NetworkImage(_profileImageUrl!) as ImageProvider
-                        : null),
-                child: (_imageFile == null &&
-                        (_profileImageUrl == null || _profileImageUrl!.isEmpty))
-                    ? Icon(Icons.camera_alt,
-                        size: 70, color: Colors.grey[600]) // 증가: 40 -> 60
-                    : null,
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(35),
+              child: Column(
+                children: [
+                  SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.05,
+                  ),
+                  GestureDetector(
+                    onTap: _pickImage,
+                    child: CircleAvatar(
+                      radius: 90,
+                      backgroundColor: Colors.grey[200],
+                      backgroundImage: _imageFile != null
+                          ? FileImage(_imageFile!)
+                          : (_profileImageUrl != null && _profileImageUrl!.isNotEmpty
+                              ? NetworkImage(_profileImageUrl!) as ImageProvider
+                              : null),
+                      child: (_imageFile == null &&
+                              (_profileImageUrl == null || _profileImageUrl!.isEmpty))
+                          ? Icon(Icons.camera_alt,
+                              size: 70, color: Colors.grey[600])
+                          : null,
+                    ),
+                  ),
+                  const SizedBox(height: 50),
+                  SizedBox(
+                    width: MediaQuery.of(context).size.width * 0.7,
+                    child: TextField(
+                      controller: _nicknameController,
+                      decoration: InputDecoration(
+                        hintText: '닉네임',
+                        hintStyle: TextStyle(color: AppColors.workDSTGray),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(5),
+                          borderSide: BorderSide(color: Colors.grey[400]!),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(5),
+                          borderSide: BorderSide(
+                              color: const Color.fromARGB(216, 158, 158, 158)),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey[200],
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(5),
+                          borderSide: BorderSide(color: AppColors.olivegreen),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 50),
-            SizedBox(
-              width: MediaQuery.of(context).size.width * 0.7, // 화면 너비의 70%로 설정
-              child: TextField(
-                controller: _nicknameController,
-                decoration: InputDecoration(
-                  hintText: '닉네임',
-                  hintStyle: TextStyle(color: AppColors.workDSTGray),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(5),
-                    borderSide: BorderSide(color: Colors.grey[400]!),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(5),
-                    borderSide: BorderSide(
-                        color: const Color.fromARGB(216, 158, 158, 158)),
-                  ),
-                  filled: true,
-                  fillColor: Colors.grey[200], // 배경색 추가
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(5),
-                    borderSide: BorderSide(color: AppColors.olivegreen),
+          ),
+          Container(
+            padding: const EdgeInsets.all(35),
+            child: Column(
+              children: [
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _saveProfile,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      backgroundColor: AppColors.lightgreen,
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                    ),
+                    child: const Text('저장'),
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 50),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _saveProfile,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  backgroundColor: AppColors.lightgreen,
-                  foregroundColor: Colors.black, // 버튼 텍스트 색상
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(5),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _resetToDefaultProfile,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      backgroundColor: AppColors.lightgreen,
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                    ),
+                    child: const Text('기본 프로필로 되돌리기'),
                   ),
                 ),
-                child: const Text('저장'),
-              ),
+              ],
             ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _resetToDefaultProfile,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  backgroundColor: AppColors.lightgreen,
-                  foregroundColor: Colors.black, // 버튼 텍스트 색상
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(5),
-                  ),
-                ),
-                child: const Text('기본 프로필 이미지로 되돌리기'),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

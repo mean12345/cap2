@@ -80,7 +80,7 @@ class _PasswordResetPageState extends State<PasswordResetPage> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text('비밀번호 재설정'),
-        backgroundColor: AppColors.olivegreen,
+        backgroundColor: Colors.transparent,
       ),
       body: Padding(
         padding: const EdgeInsets.fromLTRB(45.0, 50.0, 45.0, 45.0),

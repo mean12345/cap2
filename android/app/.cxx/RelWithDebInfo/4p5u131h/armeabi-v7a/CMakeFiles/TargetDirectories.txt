@@ -1,0 +1,2 @@
+C:/DangQ_server/Dangq/android/app/.cxx/RelWithDebInfo/4p5u131h/armeabi-v7a/CMakeFiles/edit_cache.dir
+C:/DangQ_server/Dangq/android/app/.cxx/RelWithDebInfo/4p5u131h/armeabi-v7a/CMakeFiles/rebuild_cache.dir

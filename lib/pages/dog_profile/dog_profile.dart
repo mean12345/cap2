@@ -1,5 +1,6 @@
 import 'package:dangq/colors.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -82,16 +83,25 @@ class _DogProfileState extends State<DogProfile> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.white,
       appBar: AppBar(
         scrolledUnderElevation: 0,
-        toolbarHeight: MediaQuery.of(context).size.height * 0.05,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.black, size: 35),
-          onPressed: () => Navigator.pop(context),
+        toolbarHeight: MediaQuery.of(context).size.height * 0.07,
+        title: Text(
+          '반려견 프로필',
+          style: const TextStyle(
+            color: Colors.black,
+            fontSize: 17,
+            fontWeight: FontWeight.w500,
+          ),
         ),
-        backgroundColor: Colors.transparent,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        backgroundColor: Colors.white,
         elevation: 0,
+        systemOverlayStyle: SystemUiOverlayStyle.dark,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
