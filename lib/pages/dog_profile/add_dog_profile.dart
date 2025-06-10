@@ -321,11 +321,13 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
           ),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.of(context).pop(),
         ),
         backgroundColor: Colors.white,
         elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
         systemOverlayStyle: SystemUiOverlayStyle.dark,
         actions: _isUpdating
             ? [
@@ -336,109 +338,115 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
               ]
             : null,
       ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(0, 0, 0, bottomInset + 20),
-        child: Column(
-          children: [
-            const SizedBox(height: 40),
-            GestureDetector(
-              onTap: _pickImage,
-              child: Container(
-                width: 140,
-                height: 140,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.grey[300],
-                  border: Border.all(
-                    color: const Color.fromARGB(255, 153, 153, 153),
-                    width: 2,
-                  ),
-                  image: _imageFile != null
-                      ? DecorationImage(
-                          image: FileImage(_imageFile!),
-                          fit: BoxFit.cover,
-                        )
-                      : (_dogImageUrl != null && _dogImageUrl!.isNotEmpty
-                          ? DecorationImage(
-                              image: NetworkImage(_dogImageUrl!),
-                              fit: BoxFit.cover,
-                            )
-                          : null),
-                ),
-                child: (_imageFile == null &&
-                        (_dogImageUrl == null || _dogImageUrl!.isEmpty))
-                    ? const Icon(
-                        Icons.add_a_photo,
-                        size: 70,
-                        color: Color.fromARGB(255, 153, 153, 153),
-                      )
-                    : null,
-              ),
-            ),
-            const SizedBox(height: 30),
-            Container(
-              margin: EdgeInsets.symmetric(horizontal: 20),
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(0, 0, 0, bottomInset + 20),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    '이름',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                    child: TextField(
-                      controller: _nameController,
-                      autofocus: false,
-                      decoration: InputDecoration(
-                        hintText: '이름',
-                        hintStyle: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 16,
+                  const SizedBox(height: 40),
+                  GestureDetector(
+                    onTap: _pickImage,
+                    child: Container(
+                      width: 140,
+                      height: 140,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.grey[300],
+                        border: Border.all(
+                          color: const Color.fromARGB(255, 153, 153, 153),
+                          width: 2,
                         ),
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 15,
-                          vertical: 15,
-                        ),
-                        border: InputBorder.none,
+                        image: _imageFile != null
+                            ? DecorationImage(
+                                image: FileImage(_imageFile!),
+                                fit: BoxFit.cover,
+                              )
+                            : (_dogImageUrl != null && _dogImageUrl!.isNotEmpty
+                                ? DecorationImage(
+                                    image: NetworkImage(_dogImageUrl!),
+                                    fit: BoxFit.cover,
+                                  )
+                                : null),
                       ),
+                      child: (_imageFile == null &&
+                              (_dogImageUrl == null || _dogImageUrl!.isEmpty))
+                          ? const Icon(
+                              Icons.add_a_photo,
+                              size: 70,
+                              color: Color.fromARGB(255, 153, 153, 153),
+                            )
+                          : null,
                     ),
                   ),
+                  const SizedBox(height: 30),
+                  Container(
+                    margin: EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '이름',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                          child: TextField(
+                            controller: _nameController,
+                            autofocus: false,
+                            decoration: InputDecoration(
+                              hintText: '이름',
+                              hintStyle: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 16,
+                              ),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 15,
+                                vertical: 15,
+                              ),
+                              border: InputBorder.none,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 100),
                 ],
               ),
             ),
-            SizedBox(height: 100),
-          ],
-        ),
-      ),
-      bottomSheet: Container(
-        width: double.infinity,
-        height: 55,
-        margin: const EdgeInsets.fromLTRB(20, 0, 20, 30),
-        child: ElevatedButton(
-          onPressed: _isUpdating ? _updateDogProfile : _saveDogProfile,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.lightgreen,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(5),
+          ),
+          Container(
+            width: double.infinity,
+            height: 55,
+            margin: const EdgeInsets.fromLTRB(20, 0, 20, 30),
+            child: ElevatedButton(
+              onPressed: _isUpdating ? _updateDogProfile : _saveDogProfile,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.lightgreen,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(5),
+                ),
+              ),
+              child: Text(
+                _isUpdating ? '수정' : '저장',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+              ),
             ),
           ),
-          child: Text(
-            _isUpdating ? '수정' : '저장',
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
-            ),
-          ),
-        ),
+        ],
       ),
     );
   }

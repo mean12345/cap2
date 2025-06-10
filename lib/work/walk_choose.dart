@@ -222,8 +222,9 @@ class WalkChooseState extends State<WalkChoose> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
+            // 선택된 강아지 정보를 메인 페이지로 전달
             Navigator.pop(context, {
-              'dogId': _selectedDogId,
+              'selectedDogId': _selectedDogId, // 'dogId'에서 'selectedDogId'로 변경
               'dogName': _selectedDogName,
               'imageUrl': _selectedDogImageUrl,
             });
