@@ -14,11 +14,11 @@ import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:dangq/work/dog_list.dart';
 import 'package:dangq/pages/dog_profile/dog_profile.dart';
-import 'package:dangq/pages/dog_profile/add_dog_profile.dart'; // 추가된 import
+import 'package:dangq/pages/dog_profile/add_dog_profile.dart';
 
 class MainPage extends StatefulWidget {
   final String username;
-  final int? selectedDogId; // 선택된 강아지 ID 파라미터 추가
+  final int? selectedDogId;
 
   const MainPage({
     Key? key,
@@ -32,6 +32,7 @@ class MainPage extends StatefulWidget {
 
 class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   String nickname = '';
+  String? profileImageUrl;
   List<Map<String, dynamic>> dogProfiles = [];
   int _currentPhotoIndex = 0;
   bool _isLoading = true;
@@ -48,17 +49,14 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // 즉시 데이터 로드
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _refreshData();
-      _fetchWeather();
-    });
+    _loadProfileInfo();
+    _fetchDogProfilesSafely();
+    _fetchWeather();
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // 페이지가 보여질 때마다 데이터 새로고침
     _refreshData();
   }
 
@@ -68,7 +66,6 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  // 앱이 포그라운드로 돌아올 때 호출됨
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
@@ -76,102 +73,110 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     }
   }
 
-  // 공통 새로고침 함수 - 동시 실행으로 속도 개선
   Future<void> _refreshData() async {
-    // 병렬로 실행하여 속도 향상
-    final futures = <Future>[
-      _loadProfile(),
+    await Future.wait([
+      _loadProfileInfo(),
       _fetchDogs(),
-    ];
-
-    await Future.wait(futures);
+    ]);
   }
 
-  // 백그라운드에서 데이터를 새로고침하는 함수 (로딩 상태 없이)
   Future<void> _refreshDataInBackground() async {
-    final futures = <Future>[
-      _loadProfile(),
-      _fetchDogsInBackground(),
-    ];
-
-    await Future.wait(futures);
+    await Future.wait([
+      _loadProfileInfo(),
+      _fetchDogs(),
+    ]);
   }
 
-  Future<void> _loadProfile() async {
+  void _fetchDogProfilesSafely() {
+    _fetchDogs().catchError((e) {
+      setState(() {
+        dogProfiles = [];
+        _currentPhotoIndex = 0;
+        _isLoading = false;
+      });
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('반려견 프로필을 불러오는 데 실패했습니다.')),
+          );
+        }
+      });
+    });
+  }
+
+  Future<void> _loadProfileInfo() async {
     try {
-      final res = await http.get(
+      final response = await http.get(
         Uri.parse('$baseUrl/users/get_nickname?username=${widget.username}'),
       );
-      if (res.statusCode == 200 && mounted) {
-        final j = json.decode(res.body);
+
+      if (response.statusCode == 200 && mounted) {
+        final jsonResponse = json.decode(response.body);
         setState(() {
-          nickname = (j['nickname'] as String?) ?? '';
+          nickname = jsonResponse['nickname'] ?? '닉네임을 불러오는 중...';
+          profileImageUrl = jsonResponse['profile_picture'];
         });
       }
-    } catch (_) {}
+    } catch (e) {
+      print('Error loading profile info: $e');
+    }
   }
 
   Future<void> _fetchDogs() async {
-    setState(() => _isLoading = true);
-    await _fetchDogsCore();
-    setState(() => _isLoading = false);
-  }
+    setState(() {
+      _isLoading = true;
+    });
 
-  // 백그라운드에서 강아지 데이터를 가져오는 함수 (로딩 상태 없이)
-  Future<void> _fetchDogsInBackground() async {
-    await _fetchDogsCore();
-  }
-
-  // 강아지 데이터 가져오기 핵심 로직
-  Future<void> _fetchDogsCore() async {
     try {
-      final res = await http.get(
-        Uri.parse('$baseUrl/dogs/get_dogs?username=${widget.username}'),
-      );
-      if (res.statusCode == 200) {
-        final List list = json.decode(res.body);
-        final newDogProfiles = list
-            .map((e) => {
-                  'id': e['id'],
-                  'dog_name': (e['name'] as String?) ?? '',
-                  'image_url': (e['imageUrl'] as String?) ?? '',
-                })
-            .toList();
+      final url = '$baseUrl/dogs/get_dogs?username=${widget.username}';
+      print('요청 URL: $url');
+
+      final response = await http.get(Uri.parse(url));
+      print('응답 상태 코드: ${response.statusCode}');
+      print('응답 본문: ${response.body}');
+
+      if (response.statusCode == 404) {
+        setState(() {
+          dogProfiles = [];
+          _currentPhotoIndex = 0;
+          _isLoading = false;
+        });
+        return;
+      }
+
+      if (response.statusCode == 200) {
+        final List<dynamic> jsonResponse = json.decode(response.body);
 
         setState(() {
-          // 현재 선택된 강아지의 ID를 저장
-          final currentSelectedDogId =
-              dogProfiles.isNotEmpty && _currentPhotoIndex < dogProfiles.length
-                  ? dogProfiles[_currentPhotoIndex]['id']
-                  : null;
+          dogProfiles = jsonResponse
+              .map((dog) => {
+                    'id': dog['id'],
+                    'dog_name': dog['name'],
+                    'image_url': dog['imageUrl'],
+                  })
+              .toList();
 
-          dogProfiles = newDogProfiles;
-
-          // 선택된 강아지 ID가 있으면 해당 인덱스로 설정
-          if (widget.selectedDogId != null) {
-            final selectedIndex = dogProfiles
-                .indexWhere((dog) => dog['id'] == widget.selectedDogId);
-            _currentPhotoIndex = selectedIndex >= 0 ? selectedIndex : 0;
-          }
-          // widget.selectedDogId가 없지만 기존에 선택된 강아지가 있다면 그 강아지를 유지
-          else if (currentSelectedDogId != null) {
-            final maintainIndex = dogProfiles
-                .indexWhere((dog) => dog['id'] == currentSelectedDogId);
-            _currentPhotoIndex = maintainIndex >= 0 ? maintainIndex : 0;
-          }
-          // 완전히 처음 로드하는 경우에만 0으로 설정
-          else if (dogProfiles.isNotEmpty &&
+          if (dogProfiles.isNotEmpty &&
               _currentPhotoIndex >= dogProfiles.length) {
-            _currentPhotoIndex = 0;
+            _currentPhotoIndex = dogProfiles.length - 1;
           }
+
+          _isLoading = false;
         });
+      } else {
+        print('실패: ${response.statusCode}');
+        setState(() {
+          _isLoading = false;
+        });
+        throw Exception('Failed to load dog profiles');
       }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('반려견 정보를 불러오는 데 실패했습니다.')),
-        );
-      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      print('예외 발생: $e');
+      rethrow;
     }
   }
 
@@ -220,7 +225,6 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     } catch (_) {}
   }
 
-  // 강아지 선택 변경을 처리하는 함수
   void _updateSelectedDog(int dogId) {
     final selectedIndex = dogProfiles.indexWhere((dog) => dog['id'] == dogId);
     if (selectedIndex >= 0) {
@@ -230,7 +234,6 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     }
   }
 
-  // 즉시 강아지 선택을 변경하는 함수 (로딩 없이)
   void _updateSelectedDogImmediately(int dogId) {
     final selectedIndex = dogProfiles.indexWhere((dog) => dog['id'] == dogId);
     if (selectedIndex >= 0) {
@@ -240,25 +243,22 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     }
   }
 
-  // 즉시 반영을 위한 최적화된 네비게이션 함수
   Future<void> _navigateAndRefresh(Widget page) async {
     final result =
         await Navigator.push(context, MaterialPageRoute(builder: (_) => page));
 
-    if (mounted && result is Map && result['selectedDogId'] != null) {
-      // 선택된 강아지 ID가 있으면 즉시 UI 업데이트
-      _updateSelectedDogImmediately(result['selectedDogId']);
-
-      // 그 후에 백그라운드에서 데이터 새로고침
-      _refreshDataInBackground();
-    } else if (mounted) {
-      await _refreshData();
+    if (mounted) {
+      if (result is Map && result['selectedDogId'] != null) {
+        _updateSelectedDogImmediately(result['selectedDogId']);
+        _refreshDataInBackground();
+      } else {
+        await _refreshData();
+      }
     }
 
     return result;
   }
 
-  // Settings 페이지로의 최적화된 네비게이션 함수
   Future<void> _navigateToSettings() async {
     final result = await Navigator.push(
       context,
@@ -267,14 +267,13 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
       ),
     );
 
-    if (mounted && result is Map && result['selectedDogId'] != null) {
-      // 선택된 강아지 ID가 있으면 즉시 UI 업데이트
-      _updateSelectedDogImmediately(result['selectedDogId']);
-
-      // 그 후에 백그라운드에서 데이터 새로고침
-      _refreshDataInBackground();
-    } else if (mounted) {
-      await _refreshData();
+    if (mounted) {
+      if (result is Map && result['selectedDogId'] != null) {
+        _updateSelectedDogImmediately(result['selectedDogId']);
+        _refreshDataInBackground();
+      } else {
+        await _refreshData();
+      }
     }
   }
 
@@ -300,13 +299,20 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                       CircleAvatar(
                         radius: 24,
                         backgroundColor: const Color(0xFFE6E6E6),
+                        backgroundImage: profileImageUrl != null &&
+                                profileImageUrl!.isNotEmpty
+                            ? NetworkImage(profileImageUrl!)
+                            : null,
                         child:
-                            Icon(Icons.person, size: 32, color: Colors.black87),
+                            profileImageUrl == null || profileImageUrl!.isEmpty
+                                ? Icon(Icons.person,
+                                    size: 32, color: Colors.black87)
+                                : null,
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          nickname.isNotEmpty ? nickname : '둘째누나',
+                          nickname.isNotEmpty ? nickname : '없음',
                           style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w600,
@@ -500,13 +506,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                                       );
 
                                       // 강아지 프로필에서 돌아온 후 최적화된 처리
-                                      if (mounted &&
-                                          result is Map &&
-                                          result['selectedDogId'] != null) {
-                                        _updateSelectedDogImmediately(
-                                            result['selectedDogId']);
-                                        _refreshDataInBackground();
-                                      } else if (mounted) {
+                                      if (mounted) {
                                         await _refreshData();
                                       }
                                     },
@@ -533,21 +533,46 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                                                 color: Colors.grey[600],
                                               ),
                                             )
-                                          : CircleAvatar(
-                                              key: ValueKey(_currentPhotoIndex),
-                                              radius: 100,
-                                              backgroundImage: dogProfiles[
+                                          : dogProfiles.isNotEmpty &&
+                                                  _currentPhotoIndex <
+                                                      dogProfiles.length
+                                              ? CircleAvatar(
+                                                  key: ValueKey(
+                                                      _currentPhotoIndex),
+                                                  radius: 100,
+                                                  backgroundImage: dogProfiles[
+                                                                  _currentPhotoIndex]
+                                                              ['image_url'] !=
+                                                          ''
+                                                      ? NetworkImage(dogProfiles[
                                                               _currentPhotoIndex]
-                                                          ['image_url'] !=
-                                                      ''
-                                                  ? NetworkImage(dogProfiles[
-                                                          _currentPhotoIndex]
-                                                      ['image_url'])
-                                                  : const AssetImage(
-                                                          'assets/images/holdon.png')
-                                                      as ImageProvider,
-                                              backgroundColor: Colors.grey[200],
-                                            ),
+                                                          ['image_url'])
+                                                      : const AssetImage(
+                                                              'assets/images/holdon.png')
+                                                          as ImageProvider,
+                                                  backgroundColor:
+                                                      Colors.grey[200],
+                                                )
+                                              : Container(
+                                                  key:
+                                                      const ValueKey('add_dog'),
+                                                  width: 200,
+                                                  height: 200,
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.grey[200],
+                                                    shape: BoxShape.circle,
+                                                    border: Border.all(
+                                                      color: Colors.grey[400]!,
+                                                      width: 2,
+                                                      style: BorderStyle.solid,
+                                                    ),
+                                                  ),
+                                                  child: Icon(
+                                                    Icons.add,
+                                                    size: 80,
+                                                    color: Colors.grey[600],
+                                                  ),
+                                                ),
                                     ),
                                   ),
                                   IconButton(
@@ -611,24 +636,41 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                       width: 330,
                       height: 57,
                       child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFE6F1E6),
-                          foregroundColor: Colors.black,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
+                        style: ButtonStyle(
+                          backgroundColor: MaterialStateProperty.all(
+                              const Color(0xFFE6F1E6)),
+                          foregroundColor:
+                              MaterialStateProperty.all(Colors.black),
+                          shape: MaterialStateProperty.all(
+                            RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
                           ),
-                          elevation: 0,
+                          elevation: MaterialStateProperty.all(0),
+                          splashFactory: NoSplash.splashFactory,
+                          overlayColor:
+                              MaterialStateProperty.all(Colors.transparent),
                         ),
-                        onPressed: dogProfiles.isEmpty
-                            ? null // dogProfiles 없으면 버튼 비활성화
-                            : () {
-                                _navigateAndRefresh(WalkChoose(
-                                  username: widget.username,
-                                  dogId: dogProfiles[_currentPhotoIndex]['id'],
-                                  dogName: dogProfiles[_currentPhotoIndex]
-                                      ['dog_name'],
-                                ));
-                              },
+                        onPressed: () {
+                          if (dogProfiles.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('반려견 프로필을 먼저 등록해주세요!'),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                            return;
+                          }
+                          _navigateAndRefresh(WalkChoose(
+                            username: widget.username,
+                            dogId: dogProfiles.isNotEmpty
+                                ? dogProfiles[_currentPhotoIndex]['id']
+                                : null,
+                            dogName: dogProfiles.isNotEmpty
+                                ? dogProfiles[_currentPhotoIndex]['dog_name']
+                                : '',
+                          ));
+                        },
                         child: const Text(
                           '산책하기',
                           style: TextStyle(
@@ -675,7 +717,15 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                                       BoardPage(username: widget.username));
                                 }),
                                 _buildMenuButton(Icons.bar_chart, '산책리스트', () {
-                                  if (dogProfiles.isEmpty) return;
+                                  if (dogProfiles.isEmpty) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('반려견 프로필을 먼저 등록해주세요!'),
+                                        duration: Duration(seconds: 2),
+                                      ),
+                                    );
+                                    return;
+                                  }
                                   _navigateAndRefresh(WorkList(
                                     username: widget.username,
                                     dogId: dogProfiles[_currentPhotoIndex]
